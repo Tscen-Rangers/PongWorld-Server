@@ -18,7 +18,7 @@ class GamePlayer(models.Model):
     created_at = models.DateField(auto_now_add=True)
 
     class Meta:
-        db_table = "gameplayer"
+        db_table = "game_player"
 
     def __str__(self):
         return f"Player {self.player.nickname} - Game {self.game.id}"
