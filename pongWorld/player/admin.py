@@ -1,9 +1,8 @@
 from django.contrib import admin
 from .models import Player
-from .models import Friend
-from .models import Block
 
-admin.site.register(Player)
-admin.site.register(Friend)
-admin.site.register(Block)
 
+@admin.register(Player)
+class PlayerAdmin(admin.ModelAdmin):
+    list_display = ("id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score")
+    fields = ("id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score")
