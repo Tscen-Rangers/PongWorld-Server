@@ -1,6 +1,7 @@
 from django.db import models
+from config.models import TimestampBaseModel
 
-class Player(models.Model):
+class Player(TimestampBaseModel):
     nickname    = models.CharField(max_length=10)
     email       = models.EmailField(max_length=30)
     profile_img = models.URLField()
@@ -8,8 +9,6 @@ class Player(models.Model):
     matches     = models.PositiveIntegerField()
     wins        = models.PositiveIntegerField()
     total_score = models.PositiveIntegerField()
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "player"
@@ -17,11 +16,10 @@ class Player(models.Model):
     def __str__(self):
         return f"Player ID {self.id}"
 
-class Friend(models.Model):
+class Friend(TimestampBaseModel):
     follower      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='followers')
     followed      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='following')
     are_we_friend = models.BooleanField()
-    created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "friend"
@@ -29,10 +27,9 @@ class Friend(models.Model):
     def __str__(self):
         return f"Player {self.follower_id.id} followed Player{self.followed_id.id}"
 
-class Block(models.Model):
+class Block(TimestampBaseModel):
     blocker    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocks')
     blocked    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocked_by')
-    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "block"
