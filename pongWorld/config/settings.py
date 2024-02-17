@@ -42,7 +42,7 @@ SECRET_KEY = get_secret('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -57,6 +57,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    'daphne',
     'rest_framework',
     'drf_spectacular',
 ]
@@ -67,7 +68,7 @@ LOCAL_APPS = [
     'chat'
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = THIRD_PARTY_APPS +  DJANGO_APPS + LOCAL_APPS
 
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
@@ -191,3 +192,5 @@ SPECTACULAR_SETTINGS = {
     'SWAGGER_UI_DIST': '//unpkg.com/swagger-ui-dist@3.38.0',  # Swagger UI 버전을 조절할수 있습니다.
     
 }
+
+ASGI_APPLICATION = 'config.asgi.application'
