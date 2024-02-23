@@ -5,7 +5,7 @@ secrets.json
 .idea
 db.sqlite3 
 __pycache__
-venvPong
+venvPongWorld
 migrations
 
 .DS_Store
