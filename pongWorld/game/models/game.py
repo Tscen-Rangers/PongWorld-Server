@@ -3,11 +3,11 @@ from player.models import Player
 from config.models import TimestampBaseModel
 
 class Game(TimestampBaseModel):
-    player1 = models.ForeignKey(Player, related_name='player1_id', on_delete=models.SET_NULL, null=True, blank=True)
-    player2 = models.ForeignKey(Player, related_name='player2_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player1 = models.ForeignKey(Player, related_name='game_player1_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player2 = models.ForeignKey(Player, related_name='game_player2_id', on_delete=models.SET_NULL, null=True, blank=True)
     player1_score = models.PositiveIntegerField(null=True, blank=True)
     player2_score = models.PositiveIntegerField(null=True, blank=True)
-    winner = models.ForeignKey(Player, related_name='winner_id', on_delete=models.SET_NULL, null=True, blank=True)
+    winner = models.ForeignKey(Player, related_name='game_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
     
     GAME_MODES_CHOICES = (
         (0, 'Quick Match'),
@@ -45,5 +45,18 @@ class Game(TimestampBaseModel):
 
     def __str__(self):
         return f"Game {self.id}"
+
+class Tournament(TimestampBaseModel):
+    player1 = models.ForeignKey(Player, related_name='tournament_player1_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player2 = models.ForeignKey(Player, related_name='tournament_player2_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player3 = models.ForeignKey(Player, related_name='tournament_player3_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player4 = models.ForeignKey(Player, related_name='tournament_player4_id', on_delete=models.SET_NULL, null=True, blank=True)
+    winner = models.ForeignKey(Player, related_name='tournament_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        db_table = "tournament"
+
+    def __str__(self):
+        return f"Tournament {self.id}"
 
 
