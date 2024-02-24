@@ -10,35 +10,30 @@ class Game(TimestampBaseModel):
     winner = models.ForeignKey(Player, related_name='game_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
     
     GAME_MODES_CHOICES = (
-        (0, 'Quick Match'),
-        (1, 'Invite Friend'),
+        (0, "Quick Match"),
+        (1, "Invite Friend"),
     )
-    mode = models.CharField(
-        max_length=1,
-        choices=GAME_MODES_CHOICES,
-        default=0,
-    )
+    mode = models.PositiveIntegerField(choices=GAME_MODES_CHOICES)
 
     DEVICE_MODES_CHOICES = (
-        (0, 'KeyBoard'),
-        (1, 'Mouse'),
+        (0, "KeyBoard"),
+        (1, "Mouse"),
     )
-    input_device = models.CharField(
-        max_length=1,
-        choices=DEVICE_MODES_CHOICES,
-        default=0,
-    )
+    input_device = models.PositiveIntegerField(choices=DEVICE_MODES_CHOICES)
 
     GAME_LEVEL_CHOICES = (
-        (0, 'Easy'),
-        (1, 'Normal'),
-        (2, 'Hard'),
+        (0, "Easy"),
+        (1, "Normal"),
+        (2, "Hard"),
     )
-    speed = models.CharField(
-        max_length=1,
-        choices=GAME_LEVEL_CHOICES,
-        default=1,
+    speed = models.PositiveIntegerField(choices=GAME_LEVEL_CHOICES)
+
+    GAME_STATUS_CHOICES = (
+        (0, "Before Starting"),
+        (1, "In Progress"),
+        (2, "End Game")
     )
+    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES)
 
     class Meta:
         db_table = "game"
@@ -52,6 +47,12 @@ class Tournament(TimestampBaseModel):
     player3 = models.ForeignKey(Player, related_name='tournament_player3_id', on_delete=models.SET_NULL, null=True, blank=True)
     player4 = models.ForeignKey(Player, related_name='tournament_player4_id', on_delete=models.SET_NULL, null=True, blank=True)
     winner = models.ForeignKey(Player, related_name='tournament_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
+    GAME_STATUS_CHOICES = (
+        (0, "Before Starting"),
+        (1, "In Progress"),
+        (2, "End Game")
+    )
+    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES)
 
     class Meta:
         db_table = "tournament"

@@ -24,6 +24,9 @@ class GameConsumer(AsyncWebsocketConsumer): # PvP Game
         # else:
         await self.enter_game_room() 
 
+    async def disconnect(self, close_code):    
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+
     async def enter_game_room(self):
         try:
             await self.accept()
@@ -82,11 +85,11 @@ class GameConsumer(AsyncWebsocketConsumer): # PvP Game
 
     @database_sync_to_async
     def get_accessible_game(self):
-        self.accessible_game_id = Game.objects.filter(mode=0, player2__isnull=True).aggregate(Min('id'))['id__min']
+        self.accessible_game_id = Game.objects.filter(mode=0, status=0, player2__isnull=True).aggregate(Min('id'))['id__min']
 
     @database_sync_to_async
     def create_quick_match_room(self):
-        self.game = Game.objects.create(player1=self.player)
+        self.game = Game.objects.create(player1=self.player, status=0)
 
     @database_sync_to_async
     def save_game_by_id(self):
@@ -116,6 +119,8 @@ class GameConsumer(AsyncWebsocketConsumer): # PvP Game
 
     async def check_matching_complete(self):
         if self.game.player1 is not None and self.game.player2 is not None:
+            setattr(self.game, 'status', 1)
+            await database_sync_to_async(self.game.save)()
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
@@ -135,6 +140,13 @@ class TournamentConsumer(GameConsumer):     # tournament
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tournament_group_name = None
+
+    async def disconnect(self, close_code):
+        self.tournament.refresh_from_db()
+        print("disconnect", self.tournament.player1, self.tournament.player2, self.tournament.player3, self.tournament.player4)
+        await self.leave_game_room()
+
+        await self.channel_layer.group_discard(self.tournament_group_name, self.channel_name)
 
     async def enter_game_room(self):
         try:
@@ -176,13 +188,13 @@ class TournamentConsumer(GameConsumer):     # tournament
     @database_sync_to_async
     def get_accessible_tournament(self):
         tournament_id = Tournament.objects.filter(
-            Q(player1__isnull=True) | Q(player2__isnull=True) | Q(player3__isnull=True) | Q(player4__isnull=True)
+            Q(player1__isnull=True) | Q(player2__isnull=True) | Q(player3__isnull=True) | Q(player4__isnull=True), status=0
         ).aggregate(Min('id'))['id__min']
         return tournament_id
 
     @database_sync_to_async
     def create_tournament_room(self):
-        self.tournament = Tournament.objects.create(player1=self.player)
+        self.tournament = Tournament.objects.create(player1=self.player, status=0)
 
     @database_sync_to_async
     def save_tournament_by_id(self):
@@ -195,10 +207,10 @@ class TournamentConsumer(GameConsumer):     # tournament
 
     async def join_tournament(self):
         try:
-            player1 = await sync_to_async(self.tournament.__getattribute__)('player1_id')
-            player2 = await sync_to_async(self.tournament.__getattribute__)('player2_id')
-            player3 = await sync_to_async(self.tournament.__getattribute__)('player3_id')
-            player4 = await sync_to_async(self.tournament.__getattribute__)('player4_id')
+            player1 = await sync_to_async(self.tournament.__getattribute__)('player1')
+            player2 = await sync_to_async(self.tournament.__getattribute__)('player2')
+            player3 = await sync_to_async(self.tournament.__getattribute__)('player3')
+            player4 = await sync_to_async(self.tournament.__getattribute__)('player4')
 
             players = [player1, player2, player3, player4]
 
@@ -211,6 +223,8 @@ class TournamentConsumer(GameConsumer):     # tournament
                     await database_sync_to_async(self.tournament.save)()
                     break
 
+            print(self.tournament.player1, self.tournament.player2, self.tournament.player3, self.tournament.player4)
+
         except Exception as e:
             await self.send(text_data=json.dumps({"error": str(e)}))
             await self.close()
@@ -218,6 +232,8 @@ class TournamentConsumer(GameConsumer):     # tournament
     async def check_matching_complete(self):
         if self.tournament.player1 is not None and self.tournament.player2 is not None \
             and self.tournament.player3 is not None and self.tournament.player4 is not None:
+            setattr(self.tournament, 'status', 1)
+            await database_sync_to_async(self.tournament.save)()
             await self.channel_layer.group_send(
                 self.tournament_group_name,
                 {
@@ -225,3 +241,33 @@ class TournamentConsumer(GameConsumer):     # tournament
                     'message': "매칭이 완료되었습니다. 곧 토너먼트가 시작됩니다!",
                 }, 
             )
+
+    async def leave_game_room(self):
+
+        if self.tournament.status == 0:      # 게임 시작 전에만 퇴장 가능
+            await self.remove_player_from_game()
+            await self.check_and_delete_game()
+
+    async def remove_player_from_game(self):
+        print("remove" + self.tournament.player1, self.tournament.player2, self.tournament.player3, self.tournament.player4)
+        
+        # 현재 플레이어를 게임에서 제거
+        if self.tournament.player1 == self.player:
+            self.tournament.player1 = None
+        elif self.tournament.player2 == self.player:
+            self.tournament.player2 = None
+        elif self.tournament.player3 == self.player:
+            self.tournament.player3 = None
+        elif self.tournament.player4 == self.player:
+            self.tournament.player4 = None
+
+        
+        await database_sync_to_async(self.tournament.save)()
+
+    async def check_and_delete_game(self):
+
+         if self.tournament.player1 is None and self.tournament.player2 is None \
+            and self.tournament.player3 is None and self.tournament.player4 is None:
+            await database_sync_to_async(self.tournament.delete)()
+
+    
