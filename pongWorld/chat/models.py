@@ -2,7 +2,12 @@ from django.db import models
 from player.models import Player
 
 class ChatRoom(models.Model):
+    user1 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='user1_chat_room')
+    user2 = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='user2_chat_room')
+    last_sender = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='last_sent_chat_room')
+    unread_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField()
 
     class Meta:
         db_table = "chat_room"
@@ -10,41 +15,25 @@ class ChatRoom(models.Model):
     def __str__(self):
         return f"ChatRoom {self.id}"
 
-class JoinChatRoom(models.Model):
-    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="joined_chat")
-    chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="joined_player")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "join_chat"
-
-    def __str__(self):
-        return f"Player {self.player.nickname} joined {self.chatroom.id}"
-
 class Message(models.Model):
-    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="message")
-    chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="message")
-    content = models.CharField(max_length=100)
+    chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
+    message = models.CharField(max_length=100)
+    sender = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='sent_messages')
+    is_read = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "message"
 
     def __str__(self):
-        return f"Send by {self.player.email}"
+            return f"Send by {self.sender.username}"
 
-    def last_3_recent_messages(room_id):
-        return Message.objects.filter(room_id=room_id).order_by('created_at')[:3]
-
-class UnreadMessage(models.Model):
-    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name="unread_message")
-    chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name="unread_message")
-    unread_count = models.PositiveIntegerField()
-    created_at  = models.DateTimeField(auto_now_add=True)
-    updated_at  = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = "unread_message"
-
-    def __str__(self):
-        return f"There is {self.unread_count} unread message"
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.chatroom.updated_at = self.created_at
+        if self.sender == self.chatroom.last_sender:
+            self.chatroom.unread_count += 1
+        else:
+            self.chatroom.last_sender = self.sender
+            self.chatroom.unread_count = 1
+        self.chatroom.save()
