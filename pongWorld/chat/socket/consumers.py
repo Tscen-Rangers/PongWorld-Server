@@ -5,7 +5,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
 
-from .models import ChatRoom, Message
+from chat.models import ChatRoom, Message
 from player.models import Player
 
 class PublicChatConsumer(AsyncWebsocketConsumer):
