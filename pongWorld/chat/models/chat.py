@@ -17,8 +17,8 @@ class ChatRoom(models.Model):
 
 class Message(models.Model):
     chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
-    message = models.CharField(max_length=100)
     sender = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='sent_messages')
+    message = models.CharField(max_length=100)
     is_read = models.BooleanField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -26,7 +26,7 @@ class Message(models.Model):
         db_table = "message"
 
     def __str__(self):
-            return f"Send by {self.sender.username}"
+            return f"Send by {self.sender.nickname}"
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
