@@ -21,16 +21,35 @@ class PublicChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         data_json = json.loads(text_data)
+        sender_id = data_json['sender_id']
         message = data_json['message']
 
         await self.channel_layer.group_send(
-            self.room_group_name, {"type": "public.message", "message": message}
+            self.room_group_name, {
+                "type": "public.message",
+                "sender_id": sender_id,
+                "message": message,
+            }
         )
 
     async def public_message(self, event):
+        sender_id = event['sender_id']
         message = event["message"]
+        sender_name = await self.get_player_nickname(sender_id)
 
-        await self.send(text_data=json.dumps({"message": message}, ensure_ascii=False))
+        await self.send(text_data=json.dumps({
+            "sender_id": sender_id,
+            "sender_name": sender_name,
+            "message": message
+        }, ensure_ascii=False))
+
+    @database_sync_to_async
+    def get_player_nickname(self, player_id):
+        try:
+            player = Player.objects.get(id=player_id)
+            return player.nickname
+        except Player.DoesNotExist:
+            pass
 
 class PrivateChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -120,7 +139,6 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
                 chatroom = chatroom,
                 sender = user,
                 message = message,
-                is_read = False
             )
 
             return {
