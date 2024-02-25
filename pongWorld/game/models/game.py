@@ -15,11 +15,11 @@ class Game(TimestampBaseModel):
     )
     mode = models.PositiveIntegerField(choices=GAME_MODES_CHOICES)
 
-    DEVICE_MODES_CHOICES = (
-        (0, "KeyBoard"),
-        (1, "Mouse"),
-    )
-    input_device = models.PositiveIntegerField(choices=DEVICE_MODES_CHOICES)
+    # DEVICE_MODES_CHOICES = (
+    #     (0, "KeyBoard"),
+    #     (1, "Mouse"),
+    # )
+    # input_device = models.PositiveIntegerField(choices=DEVICE_MODES_CHOICES)
 
     GAME_LEVEL_CHOICES = (
         (0, "Easy"),
@@ -48,9 +48,8 @@ class Tournament(TimestampBaseModel):
     player4 = models.ForeignKey(Player, related_name='tournament_player4_id', on_delete=models.SET_NULL, null=True, blank=True)
     winner = models.ForeignKey(Player, related_name='tournament_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
     GAME_STATUS_CHOICES = (
-        (0, "Before Starting"),
-        (1, "In Progress"),
-        (2, "End Game")
+        (0, "In Progress"),
+        (1, "End Game")
     )
     status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES)
 
