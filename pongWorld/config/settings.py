@@ -60,7 +60,7 @@ THIRD_PARTY_APPS = [
     'daphne',
     'rest_framework',
     'drf_spectacular',
-    'corsheader',
+    'corsheaders',
 ]
 
 LOCAL_APPS = [
