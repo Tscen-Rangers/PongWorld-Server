@@ -10,7 +10,7 @@ class ChatRoomList(ListAPIView):
 
     def get_queryset(self):
         player_id = self.kwargs['player_id']
-        return ChatRoom.objects.filter(Q(user1_id=player_id) | Q(user2_id=player_id)).order_by('-updated_at')
+        return ChatRoom.objects.filter(Q(user1_id=player_id) | Q(user2_id=player_id)).order_by('-last_send_time')
 
 class CustomPagination(CursorPagination):
     page_size = 30

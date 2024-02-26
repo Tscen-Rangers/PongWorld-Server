@@ -10,7 +10,7 @@ from django.db.models import Count, Min, Q
 from ..serializers import GameRoomSerializer, TournamentRoomSerializer
 from django.core.exceptions import ObjectDoesNotExist
 
-class GameConsumer(AsyncWebsocketConsumer): # PvP Game
+class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
 
     async def connect(self):
         await self.accept()
@@ -189,7 +189,7 @@ class GameConsumer(AsyncWebsocketConsumer): # PvP Game
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
 
-class TournamentConsumer(AsyncWebsocketConsumer):     # tournament
+class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     players_queue = []
     tournament_tmp_id = 1
@@ -215,23 +215,23 @@ class TournamentConsumer(AsyncWebsocketConsumer):     # tournament
                     raise ('존재하지 않는 사용자입니다.')
 
             if not self.players_queue:
-                TournamentConsumer.tournament_group_name = f'tournament_{TournamentConsumer.tournament_tmp_id}'
+                TournamentMatchConsumer.tournament_group_name = f'tournament_{TournamentMatchConsumer.tournament_tmp_id}'
             self.players_queue.append(self.player)
-            await self.channel_layer.group_add(TournamentConsumer.tournament_group_name, self.channel_name)
+            await self.channel_layer.group_add(TournamentMatchConsumer.tournament_group_name, self.channel_name)
             await self.send_queue_length()
             
             if len(self.players_queue) == 4:
                 self.tournament = await self.create_tournament_room()
                 serializer_data = await self.get_serializer_data()
                 await self.channel_layer.group_send(
-                    TournamentConsumer.tournament_group_name,
+                    TournamentMatchConsumer.tournament_group_name,
                     {
                         'type': 'game_info',
                         'data': serializer_data
                     }
                 )
                 self.players_queue.clear()
-                TournamentConsumer.tournament_tmp_id += 1
+                TournamentMatchConsumer.tournament_tmp_id += 1
 
         except ValueError as e:
             error_message = json.dumps({"error": str(e)}, ensure_ascii=False)
@@ -251,7 +251,7 @@ class TournamentConsumer(AsyncWebsocketConsumer):     # tournament
     async def disconnect(self, close_code):
         if self.player in self.players_queue:
             self.players_queue.remove(self.player)
-            await self.channel_layer.group_discard(TournamentConsumer.tournament_group_name, self.channel_name)
+            await self.channel_layer.group_discard(TournamentMatchConsumer.tournament_group_name, self.channel_name)
             await self.send_queue_length()
 
     @database_sync_to_async
@@ -277,7 +277,7 @@ class TournamentConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def send_queue_length(self):
         await self.channel_layer.group_send(
-            TournamentConsumer.tournament_group_name,
+            TournamentMatchConsumer.tournament_group_name,
             {
                 'type': 'queue_length',
                 'participants_num': len(self.players_queue)
