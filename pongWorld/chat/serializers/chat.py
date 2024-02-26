@@ -5,7 +5,7 @@ from ..models import ChatRoom, Message
 class ChatRoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatRoom
-        fields = ['id', 'user1', 'user1_nickname', 'user1_profile_img', 'user2', 'user2_nickname', 'user2_profile_img', 'last_sender', 'unread_count', 'created_at', 'updated_at']
+        fields = ['id', 'user1', 'user1_nickname', 'user1_profile_img', 'user2', 'user2_nickname', 'user2_profile_img', 'last_sender', 'unread_count']
         read_only_fields = ['id', 'user1', 'user2', 'created_at', 'updated_at']
 
     user1_nickname = serializers.CharField(source='user1.nickname', read_only=True)
