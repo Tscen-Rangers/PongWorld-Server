@@ -29,18 +29,21 @@ class PublicChatConsumer(AsyncWebsocketConsumer):
                 "type": "public.message",
                 "user_id": user_id,
                 "message": message,
+                "time": timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
             }
         )
 
     async def public_message(self, event):
         user_id = event['user_id']
         message = event['message']
+        time = event['time']
         user_name = await self.get_player_nickname(user_id)
 
         await self.send(text_data=json.dumps({
             "user_id": user_id,
             "user_name": user_name,
-            "message": message
+            "message": message,
+            "time": time,
         }, ensure_ascii=False))
 
     @database_sync_to_async
@@ -82,7 +85,7 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
                 defaults={
                     'last_sender': user1,
                     'unread_count': 0,
-                    'updated_at': timezone.now()
+                    'last_send_time': timezone.now()
                 }
             )
             return chatroom.id, created
@@ -119,11 +122,13 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
         user_id = event['user_id']
         nickname = event['nickname']
         message = event['message']
+        time = event['time']
 
         await self.send(text_data=json.dumps({
                 "user_id": user_id,
                 "nickname": nickname,
                 "message": message,
+                "time": time,
             }, ensure_ascii=False))
 
     @database_sync_to_async
@@ -135,17 +140,19 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
         try:
             user = Player.objects.get(id=user_id)
             chatroom = ChatRoom.objects.get(id=chatroom_id)
-            Message.objects.create(
+            new_message = Message.objects.create(
                 chatroom = chatroom,
                 sender = user,
                 message = message,
             )
+            formatted_date = new_message.created_at.strftime('%Y-%m-%d %H:%M:%S')
 
             return {
                 "type": "private.message",
                 "user_id": user_id,
                 "nickname": user.nickname,
-                "message": message
+                "message": message,
+                "time": formatted_date,
             }
         except Player.DoesNotExist:
             pass
