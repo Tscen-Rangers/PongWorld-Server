@@ -60,12 +60,14 @@ THIRD_PARTY_APPS = [
     'daphne',
     'rest_framework',
     'drf_spectacular',
+    'oauth2_provider',
 ]
 
 LOCAL_APPS = [
     'player',
     'game',
-    'chat'
+    'chat',
+    'tcen_auth',
 ]
 
 INSTALLED_APPS = THIRD_PARTY_APPS +  DJANGO_APPS + LOCAL_APPS
@@ -217,3 +219,10 @@ LOGGING = {
         },
     },
 }
+
+
+
+# 42_api에서 발급받은 클라이언트 id,secret 그리고 내가 설정한 url
+T42_OAUTH2_CLIENT_ID = 'u-s4t2ud-9aa6cf2fe7dc5a87f7ba74a51f370e5bbcbac699987d5c0179800747da73bbed'
+T42_OAUTH2_CLIENT_SECRET = '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'
+T42_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/tcen_auth/callback'
