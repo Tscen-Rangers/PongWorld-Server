@@ -40,49 +40,32 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
             player2_id = data['player2_id']
             self.player2 = await self.check_player2(player2_id)
             await self.create_friend_match_room()
+            self.player_group_name = f'player_{self.player2.id}'
+            await self.channel_layer.group_send(
+                self.player_group_name,
+                {
+                    'type': 'match_request_message',
+                    'message': "You have a request for a game competition.",
+                    'opponent': self.player.id,
+                    'game_id': self.game.id,
+                    'mode': self.game_speed,
+                },
+            )
             await self.send_game_info()
+
         except ValueError as e:
             error_message = json.dumps({"error": str(e)}, ensure_ascii=False)
             await self.send(text_data=error_message)
             await self.close()
 
-    async def receive_request(self, data):
-        self.game_id = data['game_id']
-        self.game_group_name = f'game_{self.game_id}'
-        accepted = data['accepted']
-        await self.save_game_by_id()
-
-        if accepted:
-            await self.channel_layer.group_add(self.game_group_name, self.channel_name)
-            setattr(self.game, 'status', 1)
-            await database_sync_to_async(self.game.save)()
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_message',
-                    'message': "The match has been completed. The game will start soon!",
-                }, 
-            )
-        else:
-            await database_sync_to_async(self.game.delete)()
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_message',
-                    'message': "The match has been rejected.",
-                }, 
-            )
-            await self.close()
-
     async def receive(self, text_data):
         data = json.loads(text_data)
         match_mode = data['match_mode']
-        await self.match_modes[data['match_mode']](self, data)
+        await self.match_modes[match_mode](self, data)
 
     match_modes = {
         'random': random_matching,
-        'send_request': send_request,
-        'receive_request': receive_request
+        'send_request': send_request
     }
 
     async def send_game_info(self):
@@ -306,4 +289,73 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             'message': message,
         },ensure_ascii=False 
         ))
-    
+
+class PlayerConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        await self.accept()
+        query_string = self.scope['query_string'].decode('utf-8')
+        query_params = parse_qs(query_string)
+        player_id = query_params.get('player_id', [None])[0]
+        self.player_id = int(player_id)
+        self.player_group_name = f'player_{self.player_id}'
+        await self.channel_layer.group_add(self.player_group_name, self.channel_name)
+
+    async def match_request_message(self, event):
+        message = event['message']
+        opponent = event.get('opponent', None)
+        game_id = event.get('game_id', None)
+        mode = event.get('mode', None)
+
+        response_data = {
+            'message': message,
+            'opponent': opponent,
+            'game_id': game_id,
+            'mode': mode
+        }
+
+        await self.send(text_data=json.dumps(response_data))
+
+    async def game_competition(self, data):
+        self.game_id = data['game_id']
+        self.game_group_name = f'game_{self.game_id}'
+        accepted = data['accepted']
+        await self.save_game_by_id()
+
+        if accepted:
+            await self.channel_layer.group_add(self.game_group_name, self.channel_name)
+            setattr(self.game, 'status', 1)
+            await database_sync_to_async(self.game.save)()
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message': "The match has been completed. The game will start soon!",
+                }, 
+            )
+        else:
+            await database_sync_to_async(self.game.delete)()
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message': "The match has been rejected.",
+                }, 
+            )
+            await self.close()
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        reply_type = data['reply_type']
+        await self.reply_types[reply_type](self, data)
+
+    reply_types = {
+        'game_competition': game_competition
+    }
+
+    @database_sync_to_async
+    def save_game_by_id(self):
+        self.game = Game.objects.get(id=self.game_id)
+
+    async def game_message(self, event):
+        message = event['message']
+        await self.send(text_data=json.dumps({ 'message': message, }))
