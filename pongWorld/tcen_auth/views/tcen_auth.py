@@ -11,9 +11,12 @@ from drf_spectacular.utils import extend_schema
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from player.models import Player
-from ..serializers import InputSerializer
+from ..serializers import OAuthCodeSerializer, OAuthLoginURLSerializer, OAuthCallbackSerailizer
 
 class OAuthLoginURLView(generics.GenericAPIView):
+    @extend_schema(
+        responses=OAuthLoginURLSerializer
+    )
     def get(self, request, *args, **kwargs):
         client_id = settings.T42_OAUTH2_CLIENT_ID
         client_redirect_uri = settings.T42_OAUTH2_REDIRECT_URI
@@ -25,7 +28,8 @@ class OAuthLoginURLView(generics.GenericAPIView):
 class OAuthCallbackView(generics.GenericAPIView):
 
     @extend_schema(
-        request=InputSerializer
+        request=OAuthCodeSerializer,
+        responses=OAuthCallbackSerailizer
     )
     def post(self, request, *args, **kwargs):
         def create_unique_nickname(nickname):
