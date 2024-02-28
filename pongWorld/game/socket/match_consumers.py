@@ -9,6 +9,7 @@ from urllib.parse import parse_qs
 from django.db.models import Count, Min, Q
 from ..serializers import GameRoomSerializer, TournamentRoomSerializer
 from django.core.exceptions import ObjectDoesNotExist
+from .common_utils import start_game
 
 class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
 
@@ -152,6 +153,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
+            await start_game(self)
 
     async def check_player2(self, player2_id):
         if player2_id == self.player_id:
@@ -332,6 +334,7 @@ class PlayerConsumer(AsyncWebsocketConsumer):
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
+            await start_game(self) # TODO 비동기 오류 
         else:
             await database_sync_to_async(self.game.delete)()
             await self.channel_layer.group_send(
