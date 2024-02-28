@@ -1,3 +1,5 @@
+from rest_framework import generics, status
+from rest_framework.response import Response
 from django.shortcuts import redirect, render
 from django.conf import settings
 from django.http import JsonResponse
@@ -9,25 +11,65 @@ import requests
 import random
 import string
 
+class OAuthLoginURLView(generics.GenericAPIView):
+    def get(self, request, *args, **kwargs):
+        client_id = settings.T42_OAUTH2_CLIENT_ID
+        client_redirect_uri = settings.T42_OAUTH2_REDIRECT_URI
 
-def home(request):
-    # 홈페이지에 표시할 간단한 메시지
-    return HttpResponse("<h1>Welcome to the homepage!</h1>")
+        t42_oauth2_url = f"https://api.intra.42.fr/oauth/authorize?client_id={client_id}&redirect_uri={client_redirect_uri}&response_type=code"
+
+        return Response({"oauth_login_url":t42_oauth2_url}, status=status.HTTP_200_OK)
+
+# class OAuthCallbackView(generics.GenericAPIView):
+#     def post(self, request, *args, **kwargs):
+#         authorization_code = request.data["code"]
+#         if not authorization_code:
+#             return Response({"error":"Authorization Code is required"}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         token_request_data = {
+#             'code': authorization_code,
+#             'client_id': settings.T42_OAUTH2_CLIENT_ID,
+#             'client_secret': settings.T42_OAUTH2_CLIENT_SECRET,
+#             'redirect_uri': settings.T42_OAUTH2_REDIRECT_URI,
+#             'grant_type': 'authorization_code',
+#         }
+#         token_response = requests.post('https://api.intra.42.fr/oauth/token', data=token_request_data)
+#
+#         if token_response.status_code != 200:
+#             return Response({"error": "Failed to obtain access token"}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         oauth_access_token = token_response.json().get('access_token')
+#
+#         user_info_response = requests.get('https://api.intra.42.fr/v2/me',
+#                                           headers={'Authorization': f'Bearer {oauth_access_token}'})
+#         if user_info_response.status_code != 200:
+#             return Response({"error": "Failed to obtain user info"}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         user_info = user_info_response.json()
+#         login = user_info.get('login')
+#         email = user_info.get('email')
+#         profile_img = user_info.get('image', {}).get('link')
+#
+#         # 이메일을 통해 해당 유저가 이미 가입되어있는지 확인
+#
+#         access_token = generate_auth_code()
+#
+#         return Response({"access_token": access_token}, status=status.HTTP_200_OK)
 
 
 
+# def home(request):
+#     # 홈페이지에 표시할 간단한 메시지
+#     return HttpResponse("<h1>Welcome to the homepage!</h1>")
 
-def t42_login(request):
-    # 42 OAuth2 인증 URL 생성
-    t42_oauth2_url = "https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-9aa6cf2fe7dc5a87f7ba74a51f370e5bbcbac699987d5c0179800747da73bbed&redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Ftcen_auth%2Fcallback&response_type=code"#42 인증 url
-    '''client_id = settings.t42_OAUTH2_CLIENT_ID
-    redirect_uri = settings.t42_OAUTH2_REDIRECT_URI
-    scope = "public"
-    response_type = "code"
-    authorization_url = f"{t42_oauth2_url}?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&access_type=offline&include_granted_scopes=true"'''
-
-    # 사용자를 인증 URL로 리다이렉션
-    return redirect(t42_oauth2_url)
+# def t42_login(request):
+#     client_id = settings.T42_OAUTH2_CLIENT_ID
+#     client_redirect_uri = settings.T42_OAUTH2_REDIRECT_URI
+#
+#     t42_oauth2_url = f"https://api.intra.42.fr/oauth/authorize?client_id={client_id}&redirect_uri={client_redirect_uri}&response_type=code"
+#
+#     # 사용자를 인증 URL로 리다이렉션
+#     return redirect(t42_oauth2_url)
 
 
 
@@ -75,9 +117,8 @@ def send_email(email_address, subject, message):
     server.login(smtp_user, smtp_password)
     server.send_message(msg)
     server.quit()
-    
-    
-    
+
+
 def generate_auth_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
