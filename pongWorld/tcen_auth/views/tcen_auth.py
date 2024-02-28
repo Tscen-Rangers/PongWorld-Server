@@ -1,19 +1,27 @@
-from rest_framework import generics, status
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.shortcuts import redirect, render
-from django.conf import settings
-import smtplib
-import requests
 import random
 import string
-from drf_spectacular.utils import extend_schema
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+import requests
+from django.shortcuts import redirect, render
+from django.conf import settings
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from drf_spectacular.utils import extend_schema
+
 from player.models import Player
-from ..serializers import OAuthCodeSerializer, OAuthLoginURLSerializer, OAuthCallbackSerailizer
+from ..serializers import (
+    OAuthCodeSerializer,
+    OAuthLoginURLSerializer,
+    OAuthCallbackSerailizer
+)
 
 class OAuthLoginURLView(generics.GenericAPIView):
+    permission_classes = [AllowAny]
     @extend_schema(
         responses=OAuthLoginURLSerializer
     )
@@ -26,7 +34,7 @@ class OAuthLoginURLView(generics.GenericAPIView):
         return Response({"oauth_login_url":t42_oauth2_url}, status=status.HTTP_200_OK)
 
 class OAuthCallbackView(generics.GenericAPIView):
-
+    permission_classes = [AllowAny]
     @extend_schema(
         request=OAuthCodeSerializer,
         responses=OAuthCallbackSerailizer
