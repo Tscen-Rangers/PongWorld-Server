@@ -60,7 +60,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
                 self.game_group_name,
                 {
                     'type': 'game_message',
-                    'message': "매칭이 완료되었습니다. 곧 게임이 시작됩니다!",
+                    'message': "The match has been completed. The game will start soon!",
                 }, 
             )
         else:
@@ -69,7 +69,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
                 self.game_group_name,
                 {
                     'type': 'game_message',
-                    'message': "매칭이 거절되었습니다.",
+                    'message': "The match has been rejected.",
                 }, 
             )
             await self.close()
@@ -166,17 +166,17 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
                 self.game_group_name,
                 {
                     'type': 'game_message',
-                    'message': "매칭이 완료되었습니다. 곧 게임이 시작됩니다!",
+                    'message': "The match has been completed. The game will start soon!",
                 }, 
             )
 
     async def check_player2(self, player2_id):
         if player2_id == self.player_id:
-            raise ValueError('자신에게 초대를 보낼 수 없습니다.')
+            raise ValueError('You cannot send an invitation to yourself.')
         try:
             player2 = await self.get_player(player2_id)
         except Player.DoesNotExist:
-            raise ValueError('존재하지 않는 사용자입니다.')
+            raise ValueError('The user does not exist.')
         return player2
     
     async def game_message(self, event):
@@ -212,7 +212,9 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 try:
                     self.player = await self.get_player()
                 except Player.DoesNotExist:
-                    raise ('존재하지 않는 사용자입니다.')
+                    raise Exception('The user does not exist.')
+            if self.player in self.players_queue:
+                raise ValueError("Your matching is already in progress.")
 
             if not self.players_queue:
                 TournamentMatchConsumer.tournament_group_name = f'tournament_{TournamentMatchConsumer.tournament_tmp_id}'
@@ -230,13 +232,13 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                         'data': serializer_data
                     }
                 )
+                await self.send_matching_complete()
                 self.players_queue.clear()
                 TournamentMatchConsumer.tournament_tmp_id += 1
 
         except ValueError as e:
             error_message = json.dumps({"error": str(e)}, ensure_ascii=False)
             await self.send(text_data=error_message)
-            await self.close()
         except Exception as e:
             await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
             await self.close()
@@ -286,3 +288,22 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def queue_length(self, event):
         await self.send(text_data=json.dumps({"participants_num": event["participants_num"]}))
+
+    async def send_matching_complete(self):
+        setattr(self.tournament, 'status', 1)
+        await database_sync_to_async(self.tournament.save)()
+        await self.channel_layer.group_send(
+            self.tournament_group_name,
+            {
+                'type': 'game_message',
+                'message': "The match has been completed. The game will start soon!",
+            },
+        )
+
+    async def game_message(self, event):
+        message = event['message']
+        await self.send(text_data=json.dumps({
+            'message': message,
+        },ensure_ascii=False 
+        ))
+    
