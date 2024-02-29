@@ -21,6 +21,7 @@ from ..serializers import (
 )
 
 class OAuthLoginURLView(generics.GenericAPIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
     @extend_schema(
         responses=OAuthLoginURLSerializer
@@ -34,6 +35,7 @@ class OAuthLoginURLView(generics.GenericAPIView):
         return Response({"oauth_login_url":t42_oauth2_url}, status=status.HTTP_200_OK)
 
 class OAuthCallbackView(generics.GenericAPIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
     @extend_schema(
         request=OAuthCodeSerializer,

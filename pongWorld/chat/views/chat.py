@@ -13,7 +13,7 @@ class ChatRoomList(ListAPIView):
         return ChatRoom.objects.filter(Q(user1_id=player_id) | Q(user2_id=player_id)).order_by('-last_send_time')
 
 class CustomPagination(CursorPagination):
-    page_size = 30
+    page_size = 50
     ordering = 'created_at'
 class MessageList(ListAPIView):
     serializer_class = MessageSerializer

@@ -1,19 +1,15 @@
-from rest_framework import generics, permissions
+from rest_framework import generics
+from django.http import Http404
 
 from ..models import Player
 from ..serializers import PlayerSerializer
 
-
-class PlayerListCreateView(generics.ListCreateAPIView):
-    permission_classes = [permissions.AllowAny,]
-    queryset = Player.objects.all()
-    serializer_class = PlayerSerializer
-    pagination_class = None
-
-
 class PlayerRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [permissions.AllowAny,]
-    http_method_names = ['patch', 'delete']
-    queryset = Player.objects.all()
     serializer_class = PlayerSerializer
-    pagination_class = None
+
+    def get_object(self):
+        try:
+            user_id = self.request.user.id
+            return Player.objects.get(id=user_id)
+        except Player.DoesNotExist:
+            raise Http404
