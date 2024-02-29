@@ -9,7 +9,7 @@ class ChatRoomList(ListAPIView):
     serializer_class = ChatRoomSerializer
 
     def get_queryset(self):
-        player_id = self.kwargs['player_id']
+        player_id = self.request.user.id
         return ChatRoom.objects.filter(Q(user1_id=player_id) | Q(user2_id=player_id)).order_by('-last_send_time')
 
 class CustomPagination(CursorPagination):

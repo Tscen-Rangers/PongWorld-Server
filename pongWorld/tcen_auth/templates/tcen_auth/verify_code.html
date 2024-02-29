@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Verify Your Code</title>
+  </head>
+  <body>
+    <h1>Verify Your Authentication Code</h1>
+    {% if error %}
+    <p style="color: red">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="">
+      {% csrf_token %}
+      <label for="code">Enter your authentication code:</label>
+      <input type="text" id="code" name="code" required />
+      <button type="submit">Verify</button>
+    </form>
+  </body>
+</html>

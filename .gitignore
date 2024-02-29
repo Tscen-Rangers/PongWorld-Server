@@ -6,6 +6,7 @@ secrets.json
 db.sqlite3 
 __pycache__
 venvPongWorld
+venv
 migrations
 
 .DS_Store
