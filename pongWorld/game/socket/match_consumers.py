@@ -1,15 +1,14 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-import logging
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
 from game.models import Game, Tournament
 from player.models import Player
 from urllib.parse import parse_qs
-from django.db.models import Count, Min, Q
-from ..serializers import GameRoomSerializer, TournamentRoomSerializer
-from django.core.exceptions import ObjectDoesNotExist
-from .common_utils import start_game
+from django.db.models import Min
+from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSerializer
+from .common_utils import start_game, get_player, save_game_by_id
+from .game_consumers import GameConsumer
 
 class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
 
@@ -20,7 +19,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
         player_id = query_params.get('player_id', [None])[0]
         self.player_id = int(player_id)
         if self.player_id is not None:
-            self.player = await self.get_player(self.player_id)
+            self.player = await get_player(self.player_id)
     
     async def random_matching(self, data):
         self.game_speed = data['game_speed']
@@ -30,7 +29,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
             await self.create_quick_match_room()
         else:          # 입장 가능한 퀵매치 방이 있을 때 입장
             self.game_id = self.accessible_game_id
-            await self.save_game_by_id()
+            self.game = await save_game_by_id(self)
             await self.join_game()
         await self.send_game_info()
         await self.check_matching_complete()
@@ -89,10 +88,6 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
         }))
 
     @database_sync_to_async
-    def get_player(self, player_id):
-        return Player.objects.get(id=player_id)
-
-    @database_sync_to_async
     def get_accessible_game(self):
         self.accessible_game_id = Game.objects.filter(
             speed=self.game_speed,
@@ -115,10 +110,6 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
             mode=1,
             speed=self.game_speed,
             status=0)
-
-    @database_sync_to_async
-    def save_game_by_id(self):
-        self.game = Game.objects.get(id=self.game_id)
 
     @database_sync_to_async
     def get_serializer_data(self):
@@ -153,13 +144,13 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
-            await start_game(self)
+            self.pvp_game = await start_game(self)
 
     async def check_player2(self, player2_id):
         if player2_id == self.player_id:
             raise ValueError('You cannot send an invitation to yourself.')
         try:
-            player2 = await self.get_player(player2_id)
+            player2 = await get_player(player2_id)
         except Player.DoesNotExist:
             raise ValueError('The user does not exist.')
         return player2
@@ -168,7 +159,7 @@ class PvPMatchConsumer(AsyncWebsocketConsumer): # PvP Game
         message = event['message']
         await self.send(text_data=json.dumps({
             'message': message,
-        },ensure_ascii=False 
+        },
         ))
 
     async def disconnect(self, close_code):
@@ -179,6 +170,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     players_queue = []
     tournament_tmp_id = 1
     tournament_group_name = None
+    current_round = 1
 
     async def connect(self):
         # if await is_unregistered_player():  # TODO 로그인 후 구현
@@ -195,7 +187,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             self.player_id = int(player_id)
             if self.player_id is not None:
                 try:
-                    self.player = await self.get_player()
+                    self.player = await get_player(self.player_id)
                 except Player.DoesNotExist:
                     raise Exception('The user does not exist.')
             if self.player in self.players_queue:
@@ -232,7 +224,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         data = event['data']
 
         await self.send(text_data=json.dumps({
-            'data': data
+            'data': data,
         }))
 
     async def disconnect(self, close_code):
@@ -240,10 +232,6 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             self.players_queue.remove(self.player)
             await self.channel_layer.group_discard(TournamentMatchConsumer.tournament_group_name, self.channel_name)
             await self.send_queue_length()
-
-    @database_sync_to_async
-    def get_player(self):
-        return Player.objects.get(id=self.player_id)
 
     @database_sync_to_async
     def create_tournament_room(self):
@@ -285,6 +273,62 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             },
         )
 
+    async def semi_final(self, data):
+        tournament_id = data['tournament_id']
+        self.tournament = await database_sync_to_async(Tournament.objects.get)(id=tournament_id)
+
+        players = {
+            'player1': await database_sync_to_async(lambda: self.tournament.player1)(),
+            'player2': await database_sync_to_async(lambda: self.tournament.player2)(),
+            'player3': await database_sync_to_async(lambda: self.tournament.player3)(),
+            'player4': await database_sync_to_async(lambda: self.tournament.player4)(),
+        }
+        current_player_role = None
+
+        for role, player in players.items():
+            if player.id == self.player.id:
+                current_player_role = role
+                break
+
+        if current_player_role == 'player1' or current_player_role == 'player2':
+            self.tournament_semi_group_name = f'tournament_{self.tournament.id}_A'
+        elif current_player_role == 'player3' or current_player_role == 'player4':
+            self.tournament_semi_group_name = f'tournament_{self.tournament.id}_B'
+        await self.send_opponent_info()
+
+    async def send_opponent_info(self):
+        if self.tournament_semi_group_name == f'tournament_{self.tournament.id}_A':
+            player1 = self.tournament.player1
+            player2 = self.tournament.player2
+        else:
+            player1 = self.tournament.player3
+            player2 = self.tournament.player4
+        try:    
+            await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
+            await self.start_semi_final(player1, player2, 0)
+        except Exception as e:
+            print(f"Exception in send_opponent_info: {e}")
+
+    async def start_semi_final(self, player1, player2, speed):
+        self.round1 = GameConsumer(player1, player2, speed)
+        game_state = self.round1.get_game_state()
+        await self.channel_layer.group_send(
+            self.tournament_semi_group_name,
+            {
+                'type': 'game_info',
+                'data': game_state
+            },
+        )
+
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        tournament_mode = data['tournament_mode']
+        await self.tournament_modes[tournament_mode](self, data)
+
+    tournament_modes = {
+        'semi_final': semi_final
+    }
+
     async def game_message(self, event):
         message = event['message']
         await self.send(text_data=json.dumps({
@@ -321,7 +365,7 @@ class PlayerConsumer(AsyncWebsocketConsumer):
         self.game_id = data['game_id']
         self.game_group_name = f'game_{self.game_id}'
         accepted = data['accepted']
-        await self.save_game_by_id()
+        self.game = await save_game_by_id(self)
 
         if accepted:
             await self.channel_layer.group_add(self.game_group_name, self.channel_name)
@@ -334,7 +378,8 @@ class PlayerConsumer(AsyncWebsocketConsumer):
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
-            await start_game(self) # TODO 비동기 오류 
+            await database_sync_to_async(lambda: start_game(self))()
+
         else:
             await database_sync_to_async(self.game.delete)()
             await self.channel_layer.group_send(
@@ -354,10 +399,6 @@ class PlayerConsumer(AsyncWebsocketConsumer):
     reply_types = {
         'game_competition': game_competition
     }
-
-    @database_sync_to_async
-    def save_game_by_id(self):
-        self.game = Game.objects.get(id=self.game_id)
 
     async def game_message(self, event):
         message = event['message']

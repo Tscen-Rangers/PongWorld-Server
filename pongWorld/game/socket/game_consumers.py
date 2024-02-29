@@ -1,4 +1,5 @@
 from .game_config import *
+from ..serializers import PlayerSerializer
 
 # 세로 : 4.9
 # 가로 : 6.8
@@ -6,7 +7,7 @@ from .game_config import *
 # 패들 가로 : 0.2
 # 패들 세로 : 1.0
 
-class PvPGameConsumer:
+class GameConsumer:
     def __init__(self, player1, player2, speed):
         self.player1 = player1
         self.player2 = player2
@@ -29,12 +30,12 @@ class PvPGameConsumer:
         # 현재 게임 상태를 반환합니다 (패들 및 볼의 위치, 점수 등)
         game_state = {
             'player1': {
-                'nickname': self.player1.nickname,
+                'info': PlayerSerializer(self.player1).data,
                 'position': list(self.player1_paddle_position),
                 'score': self.player1_score,
             },
             'player2': {
-                'nickname': self.player2.nickname,
+                'info': PlayerSerializer(self.player2).data,
                 'position': list(self.player2_paddle_postiiton),
                 'score': self.player2_score,
             },
