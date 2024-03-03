@@ -71,6 +71,7 @@ LOCAL_APPS = [
     'game',
     'chat',
     'tcen_auth',
+    'websocket'
 ]
 
 INSTALLED_APPS = THIRD_PARTY_APPS +  DJANGO_APPS + LOCAL_APPS
