@@ -8,6 +8,7 @@ from drf_spectacular.utils import OpenApiTypes
 class PlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
+        profile_img = serializers.ImageField(use_url=True)
         fields = ["id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score"]
         extra_kwargs = {
             "id": {"read_only": True},
