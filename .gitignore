@@ -8,5 +8,6 @@ __pycache__
 venvPongWorld
 venv
 migrations
+pongWorld/media
 
 .DS_Store
