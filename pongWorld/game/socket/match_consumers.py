@@ -124,8 +124,8 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             if self.user.is_authenticated:
                 self.player = self.user
 
-            # if self.player in self.players_queue:
-            #     raise ValueError("Your matching is already in progress.")
+            if self.player in self.players_queue:
+                raise ValueError("Your matching is already in progress.")
 
             if not self.players_queue:
                 TournamentMatchConsumer.tournament_group_name = f'tournament_{TournamentMatchConsumer.tournament_tmp_id}'
