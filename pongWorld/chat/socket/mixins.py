@@ -31,6 +31,7 @@ class ChatMixin:
         time = event['time']
 
         await self.send(text_data=json.dumps({
+            "type": "public_chat",
             "user_id": user_id,
             "nickname": nickname,
             "message": message,
@@ -87,6 +88,7 @@ class ChatMixin:
         time = event['time']
 
         await self.send(text_data=json.dumps({
+                "type": "private_chat",
                 "user_id": user_id,
                 "nickname": nickname,
                 "message": message,
