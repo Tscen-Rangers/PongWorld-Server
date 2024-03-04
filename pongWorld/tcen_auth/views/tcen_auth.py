@@ -7,6 +7,8 @@ from email.mime.text import MIMEText
 import requests
 from django.shortcuts import redirect, render
 from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.temp import NamedTemporaryFile
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -21,6 +23,7 @@ from ..serializers import (
 )
 
 class OAuthLoginURLView(generics.GenericAPIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
     @extend_schema(
         responses=OAuthLoginURLSerializer
@@ -34,6 +37,7 @@ class OAuthLoginURLView(generics.GenericAPIView):
         return Response({"oauth_login_url":t42_oauth2_url}, status=status.HTTP_200_OK)
 
 class OAuthCallbackView(generics.GenericAPIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
     @extend_schema(
         request=OAuthCodeSerializer,
@@ -71,14 +75,19 @@ class OAuthCallbackView(generics.GenericAPIView):
             return Response({"error": "Failed to obtain user info"}, status=status.HTTP_400_BAD_REQUEST)
 
         user_info = user_info_response.json()
+        login = user_info.get('login')
 
         user, created = Player.objects.get_or_create(
             email = user_info.get('email'),
             defaults={
-                'nickname': create_unique_nickname(user_info.get('login')),
-                'profile_img': user_info.get('image', {}).get('link'),
+                'nickname': create_unique_nickname(login)
             }
         )
+
+        profile_img_url = user_info.get('image', {}).get('link')
+        response = requests.get(profile_img_url)
+        if response.status_code == 200:
+            user.profile_img.save(f'{login}.jpg', ContentFile(response.content), save=True)
 
         token = RefreshToken.for_user(user)
         refresh_token = str(token)
@@ -91,7 +100,7 @@ class OAuthCallbackView(generics.GenericAPIView):
             'user': {
                 'id': user.id,
                 'nickname': user.nickname,
-                'profile_img': user.profile_img,
+                'profile_img': user.profile_img.url if user.profile_img else None,
                 'intro': user.intro
             }
         }

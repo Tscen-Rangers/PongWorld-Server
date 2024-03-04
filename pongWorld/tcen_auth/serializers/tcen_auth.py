@@ -8,6 +8,7 @@ class OAuthCodeSerializer(serializers.Serializer):
 class OAuthPlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
+        profile_img = serializers.ImageField(use_url=True)
         fields = ['id', 'nickname', 'profile_img', 'intro']
 
 class OAuthLoginURLSerializer(serializers.Serializer):
