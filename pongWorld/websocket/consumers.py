@@ -5,10 +5,11 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.utils import timezone
 
 from chat.socket.mixins import ChatMixin
+from game.socket.match_consumers import GameMixin
 
 online_users = set()
 
-class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin):
+class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
     async def connect(self):
         global online_users
         self.user = self.scope['user']
@@ -79,6 +80,8 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin):
             await ChatMixin.handle_public_chat(self, text_data_json)
         elif message_type == 'private_chat':
             await ChatMixin.handle_private_chat(self, text_data_json)
+        elif message_type == 'invite_game':
+            await GameMixin.handle_pvp_game(self, text_data_json)
 
     async def send_error_message(self, message):
         await self.send(text_data=json.dumps({
