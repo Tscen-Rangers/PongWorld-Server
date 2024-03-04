@@ -25,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 secret_file = os.path.join(BASE_DIR, 'secrets.json')
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = 'true'
 
 with open(secret_file) as f:
     secrets = json.loads(f.read())
@@ -210,8 +211,11 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'MIDDLEWARE': [
+            'channels.middleware.AuthMiddlewareStack',
+        ],
+    },
 }
 
 LOGGING = {
