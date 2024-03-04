@@ -42,7 +42,7 @@ class TournamentRoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Tournament
-        fields = ['player1', 'player2', 'player3', 'player4']
+        fields = ['id', 'player1', 'player2', 'player3', 'player4']
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
