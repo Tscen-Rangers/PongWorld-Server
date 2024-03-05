@@ -97,6 +97,7 @@ class OAuthCallbackView(generics.GenericAPIView):
         access_token = str(token.access_token)
 
         response_data = {
+            'refresh_token': refresh_token,
             'access_token': access_token,
             'is_new_user': created,
             'user': {
@@ -109,14 +110,14 @@ class OAuthCallbackView(generics.GenericAPIView):
 
         response = Response(response_data, status=status.HTTP_200_OK)
 
-        response.set_cookie(
-            'refresh_token',  # 쿠키 이름
-            refresh_token,  # 쿠키 값
-            httponly=True,  # JavaScript를 통해 쿠키에 접근하는 것을 방지
-            secure=False,  # HTTPS를 통해서만 쿠키를 전송 - 나중에 HTTPS 설정시 True로 변경
-            samesite='Lax',  # 쿠키의 SameSite 속성 설정
-            # max_age, expires 등 추가 설정 가능
-        )
+        # response.set_cookie(
+        #     'refresh_token',  # 쿠키 이름
+        #     refresh_token,  # 쿠키 값
+        #     httponly=True,  # JavaScript를 통해 쿠키에 접근하는 것을 방지
+        #     secure=False,  # HTTPS를 통해서만 쿠키를 전송 - 나중에 HTTPS 설정시 True로 변경
+        #     samesite='Lax',  # 쿠키의 SameSite 속성 설정
+        #     # max_age, expires 등 추가 설정 가능
+        # )
 
         return response
 
