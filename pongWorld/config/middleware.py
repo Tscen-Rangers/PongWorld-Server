@@ -1,11 +1,16 @@
-from channels.middleware import BaseMiddleware
-from django.contrib.auth.models import AnonymousUser
-from player.models import Player
 from urllib.parse import parse_qs
-from channels.db import database_sync_to_async
+
 from jwt import decode as jwt_decode, exceptions as jwt_exceptions
+
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
+from django.db import close_old_connections
+
 from channels.auth import AuthMiddlewareStack
+from channels.db import database_sync_to_async
+from channels.middleware import BaseMiddleware
+
+from player.models import Player
 
 @database_sync_to_async
 def get_user(validated_token):
@@ -21,20 +26,14 @@ class JwtAuthMiddleware(BaseMiddleware):
         super().__init__(inner)
 
     async def __call__(self, scope, receive, send):
-        headers = dict(scope['headers'])
-        if b'authorization' in headers:
-            try:
-                token_name, token_key = headers[b'authorization'].decode().split()
-                if token_name == 'Bearer':
-                    decoded_data = jwt_decode(token_key, settings.SECRET_KEY, algorithms=["HS256"])
-                    scope["user"] = await get_user(validated_token=decoded_data)
-            except (ValueError, jwt_exceptions.DecodeError, jwt_exceptions.ExpiredSignatureError):
-                await send({
-                    'type': 'websocket.close',
-                    'code': 4003
-                })
-                return
-        else:
+        close_old_connections()
+
+        token = parse_qs(scope["query_string"].decode("utf8"))["token"][0]
+
+        try:
+            decoded_token = jwt_decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            scope["user"] = await get_user(validated_token=decoded_token)
+        except (ValueError, jwt_exceptions.DecodeError, jwt_exceptions.ExpiredSignatureError):
             await send({
                 'type': 'websocket.close',
                 'code': 4003
