@@ -13,6 +13,9 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from drf_spectacular.utils import extend_schema
 
 from player.models import Player
@@ -94,7 +97,6 @@ class OAuthCallbackView(generics.GenericAPIView):
         access_token = str(token.access_token)
 
         response_data = {
-            'refresh_token': refresh_token,
             'access_token': access_token,
             'is_new_user': created,
             'user': {
@@ -105,8 +107,39 @@ class OAuthCallbackView(generics.GenericAPIView):
             }
         }
 
-        return Response(response_data, status=status.HTTP_200_OK)
+        response = Response(response_data, status=status.HTTP_200_OK)
 
+        response.set_cookie(
+            'refresh_token',  # 쿠키 이름
+            refresh_token,  # 쿠키 값
+            httponly=True,  # JavaScript를 통해 쿠키에 접근하는 것을 방지
+            secure=False,  # HTTPS를 통해서만 쿠키를 전송 - 나중에 HTTPS 설정시 True로 변경
+            samesite='Lax',  # 쿠키의 SameSite 속성 설정
+            # max_age, expires 등 추가 설정 가능
+        )
+
+        return response
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh_token', None)
+
+        if refresh_token is None:
+            return Response({"error": "Refresh token is not provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+    def get_serializer(self, *args, **kwargs):
+        serializer_class = self.get_serializer_class()
+        kwargs['context'] = self.get_serializer_context()
+        return serializer_class(*args, **kwargs)
 
 # def home(request):
 #     # 홈페이지에 표시할 간단한 메시지
