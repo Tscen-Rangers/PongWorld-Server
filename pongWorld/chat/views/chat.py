@@ -14,7 +14,7 @@ class ChatRoomList(ListAPIView):
 
 class CustomPagination(CursorPagination):
     page_size = 50
-    ordering = 'created_at'
+    ordering = '-created_at'
 class MessageList(ListAPIView):
     serializer_class = MessageSerializer
     pagination_class = CustomPagination
