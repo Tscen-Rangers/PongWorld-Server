@@ -18,7 +18,7 @@ class ChatRoom(TimestampBaseModel):
 class Message(TimestampBaseModel):
     chatroom = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='sent_messages')
-    message = models.CharField(max_length=100)
+    message = models.CharField(max_length=300)
 
     class Meta:
         db_table = "message"
