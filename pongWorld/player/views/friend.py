@@ -70,3 +70,40 @@ class FriendReqResView(viewsets.ModelViewSet):
             # 친구 신청 삭제
             friend.delete()
             return Response({'message': 'Friend request rejected'}, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def send_req_list(self, request):
+        user = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
+        followers = Friend.objects.filter(follower=user, are_we_friend=False)
+
+        # 가져온 객체들을 시리얼라이즈
+        serializer = self.get_serializer(followers, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def receive_req_list(self, request):
+        user = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 followed로 갖는 Friend 객체들을 가져옴
+        followeds = Friend.objects.filter(followed=user, are_we_friend=False)
+
+        # 가져온 객체들을 시리얼라이즈
+        serializer = self.get_serializer(followeds, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def friends_list(self, request):
+        user = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
+        friends = Friend.objects.filter(are_we_friend=True)
+
+        # 가져온 객체들을 시리얼라이즈
+        serializer = self.get_serializer(friends, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
