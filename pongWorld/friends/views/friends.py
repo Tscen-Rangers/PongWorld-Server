@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from ..models import Friend, Player
+from ..models import Friend
+from player.models import Player
 from ..serializers import FriendSerializer
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema

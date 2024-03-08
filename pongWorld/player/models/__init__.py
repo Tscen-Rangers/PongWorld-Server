@@ -1,1 +1,1 @@
-from .player import Player, Friend, Block
+from .player import Player, Block
