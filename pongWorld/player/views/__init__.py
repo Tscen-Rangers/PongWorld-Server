@@ -1,1 +1,1 @@
-from .player import PlayerRetrieveUpdateDestroyView
+from .player import PlayerRetrieveUpdateDestroyView, OnlinePlayerListView

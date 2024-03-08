@@ -52,12 +52,12 @@ class ChatMixin:
             await self.message_private_chat(text_data_json)
 
     async def enter_private_chat(self, text_data_json):
-        receiver_id = text_data_json.get('receiver_id')
-        if receiver_id is None:
+        self.chat_receiver_id = text_data_json.get('receiver_id')
+        if self.chat_receiver_id is None:
             await self.send_error_message("Receiver id not provided")
             return
 
-        self.chatroom, created = await self.get_or_create_chatroom(receiver_id)
+        self.chatroom, created = await self.get_or_create_chatroom(self.chat_receiver_id)
         if self.chatroom is None:
             await self.send_error_message("Chatroom creation failed.")
             return
@@ -70,6 +70,7 @@ class ChatMixin:
     async def leave_private_chat(self):
         await self.channel_layer.group_discard(self.private_room_group, self.channel_name)
         self.chatroom = None
+        self.chat_receiver_id = None
 
     async def message_private_chat(self, text_data_json):
         result = await self.new_message(text_data_json)
@@ -80,6 +81,21 @@ class ChatMixin:
         await  self.channel_layer.group_send(
             self.private_room_group, result
         )
+
+        receiver_group = f'player_{self.chat_receiver_id}'
+
+        await self.channel_layer.group_send(
+            receiver_group, {
+                "type": "send.unread.count",
+                "unread_count": self.chatroom.unread_count
+            }
+        )
+
+    async def send_unread_count(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "unread_count",
+            "unread_count": event['unread_count']
+        }))
 
     async def private_message(self, event):
         user_id = event['user_id']

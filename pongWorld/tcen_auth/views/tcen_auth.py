@@ -9,6 +9,7 @@ from django.shortcuts import redirect, render
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.temp import NamedTemporaryFile
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -83,14 +84,15 @@ class OAuthCallbackView(generics.GenericAPIView):
         user, created = Player.objects.get_or_create(
             email = user_info.get('email'),
             defaults={
-                'nickname': create_unique_nickname(login)
+                'nickname': create_unique_nickname(login),
+                'last_login_time': timezone.now()
             }
         )
-
-        profile_img_url = user_info.get('image', {}).get('link')
-        response = requests.get(profile_img_url)
-        if response.status_code == 200:
-            user.profile_img.save(f'{login}.jpg', ContentFile(response.content), save=True)
+        if created:
+            profile_img_url = user_info.get('image', {}).get('link')
+            response = requests.get(profile_img_url)
+            if response.status_code == 200:
+                user.profile_img.save(f'{login}.jpg', ContentFile(response.content), save=True)
 
         token = RefreshToken.for_user(user)
         refresh_token = str(token)

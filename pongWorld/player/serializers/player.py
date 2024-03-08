@@ -6,10 +6,12 @@ from drf_spectacular.utils import OpenApiTypes
 
 
 class PlayerSerializer(serializers.ModelSerializer):
+    is_online = serializers.SerializerMethodField()
+
     class Meta:
         model = Player
         profile_img = serializers.ImageField(use_url=True)
-        fields = ["id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score"]
+        fields = ["id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score", "is_online"]
         extra_kwargs = {
             "id": {"read_only": True},
             "email": {"read_only": True},
@@ -24,6 +26,9 @@ class PlayerSerializer(serializers.ModelSerializer):
 
             if Player.objects.filter(nickname=value).exclude(id=instance_id).exists():
                 raise serializers.ValidationError("This nickname already exists.")
+
+    def get_is_online(self, obj):
+        return obj.online_count > 0
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_id(self, obj):
