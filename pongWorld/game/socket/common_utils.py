@@ -11,11 +11,15 @@ async def start_game(consumer_instance):
 
 async def send_game_state(consumer_instance):
     game_state = consumer_instance.pvp_game.get_game_state()
+    data = {
+        'type': consumer_instance.socket_message,
+        'game_state': game_state
+    }
     await consumer_instance.channel_layer.group_send(
         consumer_instance.game_group_name,
         {
             'type': 'game_info',
-            'data': game_state
+            'data': data
         },
     )
 
