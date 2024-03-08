@@ -292,3 +292,6 @@ SIMPLE_JWT = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+MY_SITE_SCHEME = 'http'
+MY_SITE_DOMAIN = '127.0.0.1:8000'

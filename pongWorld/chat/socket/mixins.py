@@ -66,6 +66,9 @@ class ChatMixin:
 
         self.private_room_group = f'chat_private_{self.chatroom.id}'
         await self.channel_layer.group_add(self.private_room_group, self.channel_name)
+        await self.send(text_data=json.dumps({
+            "chatroom_id": self.chatroom.id
+        }))
 
     async def leave_private_chat(self):
         await self.channel_layer.group_discard(self.private_room_group, self.channel_name)
