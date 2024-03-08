@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from ..models import Player
 from friends.models import Friend
+from blocks.models import Block
 from drf_spectacular.utils import extend_schema_field
 from drf_spectacular.utils import OpenApiTypes
 
@@ -40,12 +41,12 @@ class PlayerSerializer(serializers.ModelSerializer):
 class SearchPlayerSerializer(serializers.ModelSerializer):
     is_online = serializers.SerializerMethodField()
     friend_status = serializers.SerializerMethodField()
-    # is_blocking = serializers.SerializerMethodField()
+    is_blocking = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
         profile_img = serializers.ImageField(use_url=True)
-        fields = ["id", "nickname", "profile_img", "is_online", "friend_status"]
+        fields = ["id", "nickname", "profile_img", "is_online", "friend_status", "is_blocking"]
 
     def get_is_online(self, obj):
         return obj.online_count > 0
@@ -61,10 +62,10 @@ class SearchPlayerSerializer(serializers.ModelSerializer):
         except Friend.DoesNotExist:
             return 0  # None
 
-    # def get_is_blocking(self, obj):
-    #     user = self.context['request'].user
-    #     try:
-    #         friend = Friend.objects.get(Q(follower=user, followed=obj) | Q(follower=obj, followed=user))
-    #         return friend.is_blocking  # Assuming that Friend model has 'is_blocking' field
-    #     except Friend.DoesNotExist:
-    #         return False  # If not a friend, not blocking
+    def get_is_blocking(self, obj):
+        user = self.context['request'].user
+        try:
+            block = Block.objects.get(blocker=user, blocked=obj)
+            return True # block
+        except Block.DoesNotExist:
+            return False  # unblock
