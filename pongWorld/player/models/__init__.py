@@ -1,1 +1,1 @@
-from .player import Player, Block
+from .player import Player
