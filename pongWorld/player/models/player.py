@@ -59,13 +59,13 @@ class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
 class Friend(TimestampBaseModel):
     follower      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='followers')
     followed      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='following')
-    are_we_friend = models.BooleanField()
+    are_we_friend = models.BooleanField(default=False)
 
     class Meta:
         db_table = "friend"
 
     def __str__(self):
-        return f"Player {self.follower_id.id} followed Player{self.followed_id.id}"
+        return f"Player {self.follower.id} followed Player{self.followed.id}"
 
 class Block(TimestampBaseModel):
     blocker    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocks')

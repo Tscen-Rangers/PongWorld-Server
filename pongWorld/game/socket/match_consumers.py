@@ -31,7 +31,9 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
             self.game_id = self.accessible_game_id
             self.game = await save_game_by_id(self)
             await self.join_game()
-        await send_game_info(self)
+        self.game_group_name = f'game_{self.game.id}'
+        await self.channel_layer.group_add(self.game_group_name, self.channel_name)
+        # await send_game_info(self)
         await self.check_matching_complete()
 
     async def receive(self, text_data):
@@ -88,6 +90,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
+            self.socket_message = 'START_RANDOM_GAME'
             await start_game(self)
     
     async def game_message(self, event):
@@ -246,11 +249,15 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     async def start_semi_final(self, player1, player2, speed):
         self.round1 = GameConsumer(player1, player2, speed)
         game_state = self.round1.get_game_state()
+        data = {
+            'type': 'START_TOURNAMENT_SEMI_FINAL',
+            'game_state': game_state
+        }
         await self.channel_layer.group_send(
             self.tournament_semi_group_name,
             {
                 'type': 'game_info',
-                'data': game_state
+                'data': data
             },
         )
 
@@ -274,13 +281,15 @@ class GameMixin:
 
     async def match_request_message(self, event):
         message = event['message']
-        opponent = event.get('opponent', None)
+        opponent_profile_img = event.get('opponent_profile_img', None)
+        opponent_nickname = event.get('opponent_nickname', None)
         game_id = event.get('game_id', None)
         mode = event.get('mode', None)
 
         response_data = {
             'message': message,
-            'opponent': opponent,
+            'opponent_profile_img': opponent_profile_img,
+            'opponent_nickname': opponent_nickname,
             'game_id': game_id,
             'mode': mode
         }
@@ -304,6 +313,7 @@ class GameMixin:
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
+            self.socket_message = 'START_FRIEND_GAME'
             await start_game(self)
 
         else:
@@ -329,12 +339,15 @@ class GameMixin:
                 {
                     'type': 'match_request_message',
                     'message': "You have a request for a game competition.",
-                    'opponent': self.player.id,
+                    'opponent_profile_img': self.player.profile_img.url,
+                    'opponent_nickname': self.player.nickname,
                     'game_id': self.game.id,
                     'mode': self.speed,
                 },
             )
-            await send_game_info(self)
+            self.game_group_name = f'game_{self.game.id}'
+            await self.channel_layer.group_add(self.game_group_name, self.channel_name)
+            # await send_game_info(self)
 
         except ValueError as e:
             error_message = json.dumps({"error": str(e)}, ensure_ascii=False)
