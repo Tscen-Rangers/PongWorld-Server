@@ -33,12 +33,13 @@ class PlayerManager(BaseUserManager):
 class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
     nickname    = models.CharField(max_length=10, unique=True)
     email       = models.EmailField(max_length=30, unique=True)
-    # profile_img = models.URLField(blank=True, null=True)
     profile_img = models.ImageField(upload_to='profile_imgs', default=None, blank=True, null=True)
     intro       = models.CharField(max_length=200, default='', blank=True)
     matches     = models.PositiveIntegerField(default=0)
     wins        = models.PositiveIntegerField(default=0)
     total_score = models.PositiveIntegerField(default=0)
+    online_count = models.PositiveIntegerField(default=0)
+    last_login_time = models.DateTimeField()
 
     objects = PlayerManager()
 
