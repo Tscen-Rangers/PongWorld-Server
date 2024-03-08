@@ -55,13 +55,3 @@ class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_superuser
-
-class Block(TimestampBaseModel):
-    blocker    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocks')
-    blocked    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocked_by')
-
-    class Meta:
-        db_table = "block"
-
-    def __str__(self):
-        return f"Player {self.blocker_id.id} blocked Player {self.blocked_id.id}"
