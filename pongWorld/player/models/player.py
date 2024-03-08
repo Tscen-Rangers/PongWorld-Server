@@ -56,17 +56,6 @@ class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
     def is_staff(self):
         return self.is_superuser
 
-class Friend(TimestampBaseModel):
-    follower      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='followers')
-    followed      = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='following')
-    are_we_friend = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = "friend"
-
-    def __str__(self):
-        return f"Player {self.follower.id} followed Player{self.followed.id}"
-
 class Block(TimestampBaseModel):
     blocker    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocks')
     blocked    = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='blocked_by')
