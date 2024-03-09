@@ -14,7 +14,7 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     user1_profile_img = serializers.URLField(source='user1.profile_img', read_only=True)
     user2_profile_img = serializers.URLField(source='user2.profile_img', read_only=True)
 
-    def get_unread_count(self, obj):
+    def get_unread_count(self, obj) -> int:
         request = self.context.get('request')
         if request:
             user = request.user
@@ -31,5 +31,5 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
         read_only_fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
 
-    def get_nickname(self, obj):
+    def get_nickname(self, obj) -> str:
         return obj.sender.nickname

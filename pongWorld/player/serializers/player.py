@@ -27,7 +27,7 @@ class PlayerSerializer(serializers.ModelSerializer):
             if Player.objects.filter(nickname=value).exclude(id=instance_id).exists():
                 raise serializers.ValidationError("This nickname already exists.")
 
-    def get_is_online(self, obj):
+    def get_is_online(self, obj) -> bool:
         return obj.online_count > 0
 
     @extend_schema_field(OpenApiTypes.INT)
