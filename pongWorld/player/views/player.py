@@ -63,6 +63,16 @@ class SearchUsers(viewsets.ModelViewSet):
     
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    def get_all_users(self, request):
+        me = request.user
+
+        users = Player.objects.filter()
+
+        serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
 
 
