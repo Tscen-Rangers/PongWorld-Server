@@ -91,12 +91,14 @@ class ChatMixin:
             self.private_room_group, result
         )
 
-        receiver_group = f'player_{self.chat_receiver_id}'
+        await self.refresh_chatroom()
 
         if self.chatroom.user1 == self.user:
             unread_count = self.chatroom.msg_count_1
         else:
             unread_count = self.chatroom.msg_count_2
+
+        receiver_group = f'player_{self.chat_receiver_id}'
 
         await self.channel_layer.group_send(
             receiver_group, {
@@ -202,3 +204,7 @@ class ChatMixin:
             "message": message,
             "created_at": new_message.created_at.isoformat()
         }
+
+    @database_sync_to_async
+    def refresh_chatroom(self):
+        self.chatroom.refresh_from_db()
