@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from ..models import Friend
 from player.models import Player
+from blocks.models import Block
 from ..serializers import FriendSerializer
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
@@ -22,10 +23,13 @@ class FriendReqResView(viewsets.ModelViewSet):
         else:
             return Response({'error': 'Followed ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-
         # 신청하는 사용자와 수락하는 사용자가 같은지 확인
         if follower == followed:
             return Response({'error': 'Cannot follow yourself'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 차단 된 상태면 친추 신청이 안감
+        if Block.objects.filter(blocker=followed, blocked=follower.id).exists():
+            return Response({'message': 'Cannot follow. Follower blocked by followed.'}, status=status.HTTP_200_OK)
 
         # 이미 친구인지 확인
         if (Friend.objects.filter(follower=follower.id, followed=followed.id, are_we_friend=True).exists()) or \
@@ -34,7 +38,7 @@ class FriendReqResView(viewsets.ModelViewSet):
         elif Friend.objects.filter(follower=follower.id, followed=followed.id, are_we_friend=False).exists() or \
             Friend.objects.filter(follower=followed.id, followed=follower.id, are_we_friend=False).exists():
             return Response({'error': 'Already sent a friend request'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         friend_instance = Friend(follower=follower, followed=followed, are_we_friend=False)
         friend_instance.save()
 
