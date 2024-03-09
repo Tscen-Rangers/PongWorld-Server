@@ -1,1 +1,1 @@
-from .player import PlayerRetrieveUpdateDestroyView , OnlinePlayerListView, PlayerProfileView
+from .player import PlayerRetrieveUpdateDestroyView , OnlinePlayerListView, PlayerProfileView, SearchUsers

@@ -4,7 +4,7 @@ from django.http import Http404
 from rest_framework.response import Response
 
 from ..models import Player
-from ..serializers import PlayerSerializer
+from ..serializers import PlayerSerializer, SearchPlayerSerializer
 
 class PlayerRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PlayerSerializer
@@ -49,6 +49,23 @@ class PlayerProfileView(viewsets.ModelViewSet):
             pass
         
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class SearchUsers(viewsets.ModelViewSet):
+    serializer_class = SearchPlayerSerializer
+
+    def get_users(self, request, name):
+        me = request.user
+
+        # 'name'을 포함한 nickname을 가진 플레이어들을 쿼리
+        users = Player.objects.filter(nickname__icontains=name)
+
+        serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
 
 
         

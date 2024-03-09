@@ -1,1 +1,1 @@
-from .player import PlayerSerializer
+from .player import PlayerSerializer, SearchPlayerSerializer
