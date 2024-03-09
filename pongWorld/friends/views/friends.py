@@ -108,3 +108,14 @@ class FriendReqResView(viewsets.ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(request=None)
+    def get_friend_request_count(self, request):
+        user = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 followed로 갖는 Friend 객체들을 가져옴
+        followeds = Friend.objects.filter(followed=user, are_we_friend=False)
+
+        followeds_count = followeds.count()
+
+        return Response({'request_cnt': followeds_count}, status=status.HTTP_200_OK)
+
