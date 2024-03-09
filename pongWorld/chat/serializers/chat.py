@@ -14,7 +14,11 @@ class ChatRoomSerializer(serializers.ModelSerializer):
     user2_profile_img = serializers.URLField(source='user2.profile_img', read_only=True)
 
 class MessageSerializer(serializers.ModelSerializer):
+    nickname = serializers.SerializerMethodField()
     class Meta:
         model = Message
-        fields = ['id', 'chatroom', 'sender', 'message', 'created_at']
-        read_only_fields = ['id', 'chatroom', 'sender', 'message', 'created_at']
+        fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
+        read_only_fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
+
+    def get_nickname(self, obj):
+        return obj.sender.nickname
