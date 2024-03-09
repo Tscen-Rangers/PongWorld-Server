@@ -26,12 +26,12 @@ class Message(TimestampBaseModel):
     def __str__(self):
             return f"Send by {self.sender.nickname}"
 
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        self.chatroom.last_send_time = self.created_at
-        if self.sender == self.chatroom.last_sender:
-            self.chatroom.unread_count += 1
-        else:
-            self.chatroom.last_sender = self.sender
-            self.chatroom.unread_count = 1
-        self.chatroom.save()
+    # def save(self, *args, **kwargs):
+    #     super().save(*args, **kwargs)
+    #     self.chatroom.last_send_time = self.created_at
+    #     if self.sender == self.chatroom.last_sender:
+    #         self.chatroom.unread_count += 1
+    #     else:
+    #         self.chatroom.last_sender = self.sender
+    #         self.chatroom.unread_count = 1
+    #     self.chatroom.save()

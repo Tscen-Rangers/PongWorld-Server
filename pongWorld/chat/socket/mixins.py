@@ -20,7 +20,7 @@ class ChatMixin:
                 "user_id": user.id,
                 "nickname": user.nickname,
                 "message": message,
-                "time": timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
+                "created_at": timezone.now().isoformat(),
             }
         )
 
@@ -28,14 +28,14 @@ class ChatMixin:
         user_id = event['user_id']
         nickname = event['nickname']
         message = event['message']
-        time = event['time']
+        created_at = event['created_at']
 
         await self.send(text_data=json.dumps({
             "type": "public_chat",
             "user_id": user_id,
             "nickname": nickname,
             "message": message,
-            "time": time,
+            "created_at": created_at,
         }, ensure_ascii=False))
 
     async def handle_private_chat(self, text_data_json):
@@ -69,6 +69,7 @@ class ChatMixin:
         await self.send(text_data=json.dumps({
             "chatroom_id": self.chatroom.id
         }))
+        await self.reset_unread_count()
 
     async def leave_private_chat(self):
         await self.channel_layer.group_discard(self.private_room_group, self.channel_name)
@@ -84,12 +85,16 @@ class ChatMixin:
         await  self.channel_layer.group_send(
             self.private_room_group, result
         )
+        await self.update_last_sender()
 
         receiver_group = f'player_{self.chat_receiver_id}'
 
         await self.channel_layer.group_send(
             receiver_group, {
                 "type": "send.unread.count",
+                "chatroom_id": self.chatroom.id,
+                "sender_id": self.user.id,
+                "sender_nickname": self.user.nickname,
                 "unread_count": self.chatroom.unread_count
             }
         )
@@ -97,6 +102,9 @@ class ChatMixin:
     async def send_unread_count(self, event):
         await self.send(text_data=json.dumps({
             "type": "unread_count",
+            "chatroom_id": event['chatroom_id'],
+            "sender_id": event['sender_id'],
+            "sender_nickname": event['sender_nickname'],
             "unread_count": event['unread_count']
         }))
 
@@ -104,14 +112,14 @@ class ChatMixin:
         user_id = event['user_id']
         nickname = event['nickname']
         message = event['message']
-        time = event['time']
+        created_at = event['created_at']
 
         await self.send(text_data=json.dumps({
                 "type": "private_chat",
                 "user_id": user_id,
                 "nickname": nickname,
                 "message": message,
-                "time": time,
+                "created_at": created_at,
             }, ensure_ascii=False))
         await self.reset_unread_count()
 
@@ -140,10 +148,23 @@ class ChatMixin:
     @database_sync_to_async
     def reset_unread_count(self):
         chatroom = self.chatroom
-        sender = self.user
-        if chatroom.last_sender != sender:
+        me = self.user
+        if chatroom.last_sender != me:
             chatroom.unread_count = 0
             chatroom.save()
+
+    @database_sync_to_async
+    def update_last_sender(self):
+        chatroom = self.chatroom
+        me = self.user
+        chatroom.last_send_time = timezone.now()
+        if chatroom.last_sender != me:
+            chatroom.unread_count = 1
+        else:
+            chatroom.unread_count += 1
+        chatroom.last_sender = me
+        chatroom.last_send_time = timezone.now()
+        chatroom.save()
 
     @database_sync_to_async
     def new_message(self, data_json):
@@ -158,12 +179,11 @@ class ChatMixin:
             sender = user,
             message = message,
         )
-        formatted_date = new_message.created_at.strftime('%Y-%m-%d %H:%M:%S')
 
         return {
             "type": "private.message",
             "user_id": user.id,
             "nickname": user.nickname,
             "message": message,
-            "time": formatted_date
+            "created_at": new_message.created_at.isoformat()
         }
