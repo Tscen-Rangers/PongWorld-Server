@@ -4,7 +4,7 @@ from .models import Game, Tournament
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
     list_display = ("id", "player1", "player2", "player1_score", "player2_score", "winner", "mode", "speed", "status")
-    fields = ("player1", "player2", "mode", "speed", "status")
+    fields = ("player1", "player2", "player1_score", "player2_score", "winner", "mode", "speed", "status")
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):

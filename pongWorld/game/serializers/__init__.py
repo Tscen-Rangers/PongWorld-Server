@@ -1,1 +1,1 @@
-from .game import PlayerSerializer, GameRoomSerializer, TournamentRoomSerializer
+from .game import PlayerSerializer, GameRoomSerializer, TournamentRoomSerializer, GameSerializer
