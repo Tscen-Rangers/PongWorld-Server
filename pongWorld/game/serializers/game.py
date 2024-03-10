@@ -2,7 +2,7 @@ from rest_framework import serializers
 from player.models import Player 
 from game.models import Game, Tournament
 from django.utils import timezone
-from django.contrib.humanize.templatetags import humanize
+import humanize
 
 
 class PlayerSerializer(serializers.ModelSerializer):

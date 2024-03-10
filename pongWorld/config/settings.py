@@ -65,6 +65,7 @@ THIRD_PARTY_APPS = [
     'drf_spectacular',
     'oauth2_provider',
     'corsheaders',
+    'humanize',
 ]
 
 LOCAL_APPS = [
