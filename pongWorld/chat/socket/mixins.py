@@ -1,6 +1,8 @@
 import json
 
 from channels.db import database_sync_to_async
+from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from chat.models import ChatRoom, Message
@@ -72,6 +74,7 @@ class ChatMixin:
         await self.reset_unread_count()
 
     async def leave_private_chat(self):
+        await self.reset_unread_count()
         await self.channel_layer.group_discard(self.private_room_group, self.channel_name)
         self.chatroom = None
         self.chat_receiver_id = None
@@ -82,10 +85,18 @@ class ChatMixin:
             await self.send_error_message("Message not provided")
             return
 
+        await self.update_chatroom()
+
         await  self.channel_layer.group_send(
             self.private_room_group, result
         )
-        await self.update_last_sender()
+
+        await self.refresh_chatroom()
+
+        if self.chatroom.user1 == self.user:
+            unread_count = self.chatroom.msg_count_1
+        else:
+            unread_count = self.chatroom.msg_count_2
 
         receiver_group = f'player_{self.chat_receiver_id}'
 
@@ -95,7 +106,7 @@ class ChatMixin:
                 "chatroom_id": self.chatroom.id,
                 "sender_id": self.user.id,
                 "sender_nickname": self.user.nickname,
-                "unread_count": self.chatroom.unread_count
+                "unread_count": unread_count
             }
         )
 
@@ -146,25 +157,31 @@ class ChatMixin:
             return None, False
 
     @database_sync_to_async
-    def reset_unread_count(self):
-        chatroom = self.chatroom
-        me = self.user
-        if chatroom.last_sender != me:
-            chatroom.unread_count = 0
+    def reset_unread_count_sync(self):
+        with transaction.atomic():
+            chatroom = ChatRoom.objects.select_for_update().get(id=self.chatroom.id)
+
+            if chatroom.user1 == self.user:
+                chatroom.msg_count_2 = 0
+            else :
+                chatroom.msg_count_1 = 0
             chatroom.save()
+    async def reset_unread_count(self):
+        await self.reset_unread_count_sync()
 
     @database_sync_to_async
-    def update_last_sender(self):
-        chatroom = self.chatroom
-        me = self.user
-        chatroom.last_send_time = timezone.now()
-        if chatroom.last_sender != me:
-            chatroom.unread_count = 1
-        else:
-            chatroom.unread_count += 1
-        chatroom.last_sender = me
-        chatroom.last_send_time = timezone.now()
-        chatroom.save()
+    def update_chatroom_sync(self):
+        with transaction.atomic():
+            chatroom = ChatRoom.objects.select_for_update().get(id=self.chatroom.id)
+            chatroom.last_send_time = timezone.now()
+            if chatroom.user1 == self.user:
+                chatroom.msg_count_1 = F('msg_count_1') + 1
+            else:
+                chatroom.msg_count_2 = F('msg_count_2') + 1
+            chatroom.save()
+
+    async def update_chatroom(self):
+        await self.update_chatroom_sync()
 
     @database_sync_to_async
     def new_message(self, data_json):
@@ -187,3 +204,7 @@ class ChatMixin:
             "message": message,
             "created_at": new_message.created_at.isoformat()
         }
+
+    @database_sync_to_async
+    def refresh_chatroom(self):
+        self.chatroom.refresh_from_db()
