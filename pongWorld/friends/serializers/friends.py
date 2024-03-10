@@ -17,10 +17,11 @@ class UserSerializer(serializers.ModelSerializer):
 class FriendSerializer(serializers.ModelSerializer):
 
     user = serializers.SerializerMethodField()
+    # TODO 게임 신청 보낼 수 있는 상태인지 추가
 
     class Meta:
         model = Friend
-        fields = ['user', 'are_we_friend']
+        fields = ['id', 'user', 'are_we_friend']
 
     def get_user(self, obj):
         request = self.context.get('request')
