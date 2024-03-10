@@ -9,6 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
+        profile_img = serializers.ImageField(use_url=True)
         fields = ['id', 'nickname', 'profile_img', 'is_online']
 
     def get_is_online(self, obj):
@@ -28,7 +29,7 @@ class FriendSerializer(serializers.ModelSerializer):
         if request:
             user_id = request.user.id
             if obj.follower.id == user_id:
-                return UserSerializer(obj.followed).data
+                return UserSerializer(obj.followed, context={'request': request}).data
             elif obj.followed.id == user_id:
-                return UserSerializer(obj.follower).data
+                return UserSerializer(obj.follower, context={'request': request}).data
         return None
