@@ -1,1 +1,1 @@
-from .friends import FriendSerializer
+from .friends import FriendSerializer, UserSerializer
