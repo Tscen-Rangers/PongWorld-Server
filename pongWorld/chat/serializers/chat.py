@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from typing import Optional
 
 from ..models import ChatRoom, Message
 
@@ -25,14 +26,14 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         else:
             return obj.msg_count_1
 
-    def get_user1_profile_img(self, obj):
+    def get_user1_profile_img(self, obj) -> Optional[str]:
         request = self.context.get('request')
         if request and obj.user1.profile_img:
             return request.build_absolute_uri(obj.user1.profile_img.url)
         else:
             return None
 
-    def get_user2_profile_img(self, obj):
+    def get_user2_profile_img(self, obj) -> Optional[str]:
         request = self.context.get('request')
         if request and obj.user2.profile_img:
             return request.build_absolute_uri(obj.user2.profile_img.url)

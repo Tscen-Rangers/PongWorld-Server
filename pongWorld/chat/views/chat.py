@@ -1,4 +1,5 @@
-from rest_framework import status
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers, status
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
@@ -19,6 +20,18 @@ class ChatRoomList(ListAPIView):
     def get_serializer_context(self):
         return {'request': self.request}
 
+@extend_schema(
+    methods=['POST'],
+    request=None,
+    responses={
+        200: inline_serializer(
+            name='LeaveChatRoomResponse',
+            fields={'message': serializers.CharField()}
+        )
+    },
+    summary='Chat room leaving endpoint',
+    description='This endpoint allows a user to leave a chat room'
+)
 class LeaveChatRoom(APIView):
     def post(self, request, chatroom_id):
         user = request.user

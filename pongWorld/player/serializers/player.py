@@ -48,10 +48,10 @@ class SearchPlayerSerializer(serializers.ModelSerializer):
         profile_img = serializers.ImageField(use_url=True)
         fields = ["id", "nickname", "profile_img", "is_online", "friend_status", "is_blocking"]
 
-    def get_is_online(self, obj):
+    def get_is_online(self, obj) -> bool:
         return obj.online_count > 0
 
-    def get_friend_status(self, obj):
+    def get_friend_status(self, obj) -> int:
         me = self.context['request'].user
         try:
             friend = Friend.objects.get(Q(follower=me, followed=obj) | Q(follower=obj, followed=me))
@@ -62,7 +62,7 @@ class SearchPlayerSerializer(serializers.ModelSerializer):
         except Friend.DoesNotExist:
             return 0  # None
 
-    def get_is_blocking(self, obj):
+    def get_is_blocking(self, obj) -> bool:
         user = self.context['request'].user
         try:
             block = Block.objects.get(blocker=user, blocked=obj)

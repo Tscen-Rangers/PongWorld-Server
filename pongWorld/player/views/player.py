@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, viewsets, status
 from rest_framework.pagination import CursorPagination
 from django.http import Http404
@@ -32,6 +33,7 @@ class OnlinePlayerListView(generics.ListAPIView):
 class PlayerProfileView(viewsets.ModelViewSet):
     serializer_class = PlayerSerializer
 
+    @extend_schema(operation_id='get_my_profile')
     def get_my_profile(self, request):
         me = request.user
 
@@ -46,6 +48,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
 
         return Response({'player': serializer.data, 'games': games_data}, status=status.HTTP_200_OK)
 
+    @extend_schema(operation_id='get_player_profile')
     def get_player_profile(self, request, user_id, game_record_type):
         me = request.user
 
@@ -79,6 +82,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
 class SearchUsers(viewsets.ModelViewSet):
     serializer_class = SearchPlayerSerializer
 
+    @extend_schema(operation_id='search_players_by_name')
     def get_users(self, request, name):
         me = request.user
 
@@ -89,6 +93,7 @@ class SearchUsers(viewsets.ModelViewSet):
     
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(operation_id='search_players')
     def get_all_users(self, request):
         me = request.user
 
