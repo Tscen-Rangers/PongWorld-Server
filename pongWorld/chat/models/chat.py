@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from player.models import Player
 from config.models import TimestampBaseModel
 
@@ -8,6 +9,10 @@ class ChatRoom(TimestampBaseModel):
     msg_count_1 = models.IntegerField(default=0) # user1이 보낸 메시지 수 (unread)
     msg_count_2 = models.IntegerField(default=0) # user2가 보낸 메시지 수 (unread)
     last_send_time = models.DateTimeField()
+    user1_participate_time = models.DateTimeField(default=timezone.now)
+    user2_participate_time = models.DateTimeField(default=timezone.now)
+    is_user1_in = models.BooleanField(default=False)
+    is_user2_in = models.BooleanField(default=False)
 
     class Meta:
         db_table = "chat_room"
