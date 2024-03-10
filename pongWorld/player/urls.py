@@ -5,7 +5,8 @@ app_name = "player"
 
 urlpatterns = [
     path('online/', views.OnlinePlayerListView.as_view()),
-    path('', views.PlayerRetrieveUpdateDestroyView.as_view(), name="player_detail"),
+    path('setting/', views.PlayerSettingView.as_view({'get': 'get_user_info'}), name="get_user_info"),
+    path('setting/<int:pk>/', views.PlayerSettingView.as_view({'patch': 'partial_update'}), name="set_user_info"),
     path('search/', views.SearchUsers.as_view({'get': 'get_all_users'}), name="get_all_users"),
     path('search/<str:name>/', views.SearchUsers.as_view({'get': 'get_users'}), name="get_users"),
     path('profile/', views.PlayerProfileView.as_view({'get': 'get_my_profile'}), name="my_profile"),
