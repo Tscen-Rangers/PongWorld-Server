@@ -11,4 +11,5 @@ urlpatterns = [
     path("followed/", views.FriendReqResView.as_view({'get': 'receive_req_list'}), name="receive_req_list"),
     path("followed/count", views.FriendReqResView.as_view({'get': 'get_friend_request_count'}), name="get_friend_request_count"),
     path("", views.FriendReqResView.as_view({'get': 'friends_list'}), name="friends_list"),
+    path("delete/<int:friend_id>/", views.FriendReqResView.as_view({'delete': 'delete_friend'}), name="delete_friend"),
 ]
