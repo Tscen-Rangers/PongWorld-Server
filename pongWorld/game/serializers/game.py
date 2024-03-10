@@ -71,12 +71,24 @@ class GameSerializer(serializers.ModelSerializer):
 
     player1 = PlayerSerializer()
     player2 = PlayerSerializer()
+    who_is_user = serializers.SerializerMethodField()
     is_win = serializers.SerializerMethodField()
     date = serializers.SerializerMethodField()
 
     class Meta:
         model = Game
-        fields = ['player1', 'player2', 'player1_score', 'player2_score', 'is_win', 'date']
+        fields = ['player1', 'player2', 'player1_score', 'player2_score', 'who_is_user', 'is_win', 'date']
+
+    def get_who_is_user(self, obj):
+        user_id = self.context.get('user_id', None)
+
+        if user_id is not None:
+            if obj.player1.id == user_id:
+                return 'player1'
+            elif obj.player2.id == user_id:
+                return 'player2'
+
+        raise ValueError("Invalid user_id")
 
     def get_is_win(self, obj):
         me = self.context['request'].user

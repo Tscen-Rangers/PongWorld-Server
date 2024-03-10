@@ -39,7 +39,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         serializer = PlayerSerializer(current_user)
         games = Game.objects.filter(player1=me) | Game.objects.filter(player2=me)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
-            game_serializer = GameSerializer(games, many=True, context={'request': request})
+            game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': current_user.id})
             games_data = game_serializer.data
         else:
             return Response({'player': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)
@@ -61,14 +61,14 @@ class PlayerProfileView(viewsets.ModelViewSet):
         if game_record_type == 0: # total
             games = Game.objects.filter(player1=user) | Game.objects.filter(player2=user)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                game_serializer = GameSerializer(games, many=True, context={'request': request})
+                game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
                 return Response({'player': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)
         elif game_record_type == 1: # with me
             games = Game.objects.filter(player1=me, player2=user) | Game.objects.filter(player1=user, player2=me)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                game_serializer = GameSerializer(games, many=True, context={'request': request})
+                game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
                 return Response({'player': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)
