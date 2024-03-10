@@ -80,16 +80,22 @@ class ChatMixin:
         self.chat_receiver_id = None
 
     async def message_private_chat(self, text_data_json):
-        result = await self.new_message(text_data_json)
-        if result is None:
+        user = self.user
+        new_message = await self.new_message(text_data_json)
+        if new_message is None:
             await self.send_error_message("Message not provided")
             return
 
-        await self.update_chatroom()
+        await self.update_chatroom(new_message)
 
         await  self.channel_layer.group_send(
-            self.private_room_group, result
-        )
+            self.private_room_group, {
+            "type": "private.message",
+            "user_id": user.id,
+            "nickname": user.nickname,
+            "message": new_message.message,
+            "created_at": new_message.created_at.isoformat()
+        })
 
         await self.refresh_chatroom()
 
@@ -145,8 +151,6 @@ class ChatMixin:
             chatroom, created = ChatRoom.objects.get_or_create(
                 user1=user1, user2=user2,
                 defaults={
-                    'last_sender': user1,
-                    'unread_count': 0,
                     'last_send_time': timezone.now()
                 }
             )
@@ -170,7 +174,7 @@ class ChatMixin:
         await self.reset_unread_count_sync()
 
     @database_sync_to_async
-    def update_chatroom_sync(self):
+    def update_chatroom_sync(self, new_message):
         with transaction.atomic():
             chatroom = ChatRoom.objects.select_for_update().get(id=self.chatroom.id)
             chatroom.last_send_time = timezone.now()
@@ -178,10 +182,16 @@ class ChatMixin:
                 chatroom.msg_count_1 = F('msg_count_1') + 1
             else:
                 chatroom.msg_count_2 = F('msg_count_2') + 1
+            if not chatroom.is_user1_in:
+                chatroom.is_user1_in = True
+                chatroom.user1_participate_time = new_message.created_at
+            if not chatroom.is_user2_in:
+                chatroom.is_user2_in = True
+                chatroom.user2_participate_time = new_message.created_at
             chatroom.save()
 
-    async def update_chatroom(self):
-        await self.update_chatroom_sync()
+    async def update_chatroom(self, new_message):
+        await self.update_chatroom_sync(new_message)
 
     @database_sync_to_async
     def new_message(self, data_json):
@@ -197,13 +207,7 @@ class ChatMixin:
             message = message,
         )
 
-        return {
-            "type": "private.message",
-            "user_id": user.id,
-            "nickname": user.nickname,
-            "message": message,
-            "created_at": new_message.created_at.isoformat()
-        }
+        return new_message
 
     @database_sync_to_async
     def refresh_chatroom(self):
