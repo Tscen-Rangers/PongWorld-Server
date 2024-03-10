@@ -9,9 +9,9 @@ router = routers.DefaultRouter()
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('player/', include(('player.urls', 'api'))),
+    path('players/', include(('player.urls', 'api'))),
     path('friends/', include (('friends.urls', 'api'))),
-    path('blocks/', include (('blocks.urls', 'api'))),
+    path('block/', include (('blocks.urls', 'api'))),
     path('chat/', include('chat.urls')),
     path('tcen-auth/', include('tcen_auth.urls')),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
