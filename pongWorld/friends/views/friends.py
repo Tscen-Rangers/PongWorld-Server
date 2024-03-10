@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from ..models import Friend
 from player.models import Player
+from blocks.models import Block
 from ..serializers import FriendSerializer
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
@@ -22,10 +23,13 @@ class FriendReqResView(viewsets.ModelViewSet):
         else:
             return Response({'error': 'Followed ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
-
         # 신청하는 사용자와 수락하는 사용자가 같은지 확인
         if follower == followed:
             return Response({'error': 'Cannot follow yourself'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 차단 된 상태면 친추 신청이 안감
+        if Block.objects.filter(blocker=followed, blocked=follower.id).exists():
+            return Response({'message': 'Cannot follow. Follower blocked by followed.'}, status=status.HTTP_200_OK)
 
         # 이미 친구인지 확인
         if (Friend.objects.filter(follower=follower.id, followed=followed.id, are_we_friend=True).exists()) or \
@@ -34,7 +38,7 @@ class FriendReqResView(viewsets.ModelViewSet):
         elif Friend.objects.filter(follower=follower.id, followed=followed.id, are_we_friend=False).exists() or \
             Friend.objects.filter(follower=followed.id, followed=follower.id, are_we_friend=False).exists():
             return Response({'error': 'Already sent a friend request'}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         friend_instance = Friend(follower=follower, followed=followed, are_we_friend=False)
         friend_instance.save()
 
@@ -55,7 +59,7 @@ class FriendReqResView(viewsets.ModelViewSet):
 
         # 나에게 온 친구 신청이 아닐 때
         if friend.followed != followed:
-            return Response({'error': 'You do not have permission to accept friend applications.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'You do not have permission to accept friend applications'}, status=status.HTTP_400_BAD_REQUEST)
 
         # 이미 친구인지 확인
         if friend.are_we_friend:
@@ -107,4 +111,35 @@ class FriendReqResView(viewsets.ModelViewSet):
         serializer = self.get_serializer(friends, many=True)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def get_friend_request_count(self, request):
+        user = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 followed로 갖는 Friend 객체들을 가져옴
+        followeds = Friend.objects.filter(followed=user, are_we_friend=False)
+
+        followeds_count = followeds.count()
+
+        return Response({'request_cnt': followeds_count}, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def delete_friend(self, request, friend_id):
+        me = request.user
+        if friend_id is not None:
+            try:
+                friend = Friend.objects.get(id=friend_id)
+            except Friend.DoesNotExist:
+                return Response({'error': 'Friend does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'error': 'Invalid friend request'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 삭제할 수 있는 권한이 없을 때
+        if friend.follower != me and friend.followed != me:
+            return Response({'error': 'You do not have permission to delete friend'}, status=status.HTTP_400_BAD_REQUEST)
+
+        friend.delete()
+        return Response({'message': 'Friend deleted successfully'}, status=status.HTTP_200_OK)
+
+        
 
