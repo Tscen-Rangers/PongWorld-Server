@@ -52,7 +52,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         if user_id is not None:
             try:
                 user = Player.objects.get(id=user_id)
-                serializer = PlayerSerializer(user)
+                serializer = PlayerSerializer(user, context={'request': request})
             except Player.DoesNotExist:
                 return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         else:
