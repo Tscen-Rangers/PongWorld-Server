@@ -1,4 +1,4 @@
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, DestroyAPIView
 from rest_framework.pagination import CursorPagination
 from django.db.models import Q
 
@@ -11,6 +11,9 @@ class ChatRoomList(ListAPIView):
     def get_queryset(self):
         player_id = self.request.user.id
         return ChatRoom.objects.filter(Q(user1_id=player_id) | Q(user2_id=player_id)).order_by('-last_send_time')
+
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 class CustomPagination(CursorPagination):
     page_size = 50
