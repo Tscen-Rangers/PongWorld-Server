@@ -98,6 +98,11 @@ class OAuthCallbackView(generics.GenericAPIView):
         refresh_token = str(token)
         access_token = str(token.access_token)
 
+        if user.profile_img:
+            absolute_url = request.build_absolute_uri(user.profile_img.url)
+        else:
+            absolute_url = None
+
         response_data = {
             'refresh_token': refresh_token,
             'access_token': access_token,
@@ -105,7 +110,7 @@ class OAuthCallbackView(generics.GenericAPIView):
             'user': {
                 'id': user.id,
                 'nickname': user.nickname,
-                'profile_img': user.profile_img.url if user.profile_img else None,
+                'profile_img': absolute_url,
                 'intro': user.intro
             }
         }
