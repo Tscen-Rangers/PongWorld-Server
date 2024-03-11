@@ -1,11 +1,13 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema
+from django.db.models import Q
+
 from ..models import Friend
 from player.models import Player
 from blocks.models import Block
 from ..serializers import FriendSerializer
-from rest_framework.decorators import action
-from drf_spectacular.utils import extend_schema
 
 class FriendReqResView(viewsets.ModelViewSet):
     queryset = Friend.objects.all()
@@ -101,18 +103,6 @@ class FriendReqResView(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(request=None)
-    def friends_list(self, request):
-        user = request.user  # 현재 요청을 보낸 사용자
-
-        # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
-        friends = Friend.objects.filter(are_we_friend=True)
-
-        # 가져온 객체들을 시리얼라이즈
-        serializer = self.get_serializer(friends, many=True)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    @extend_schema(request=None)
     def get_friend_request_count(self, request):
         user = request.user  # 현재 요청을 보낸 사용자
 
@@ -140,6 +130,36 @@ class FriendReqResView(viewsets.ModelViewSet):
 
         friend.delete()
         return Response({'message': 'Friend deleted successfully'}, status=status.HTTP_200_OK)
+
+
+class SearchFriendsView(viewsets.ModelViewSet):
+    serializer_class = FriendSerializer
+
+    @extend_schema(operation_id='search_friends')
+    def get_friends(self, request, name):
+        me = request.user
+
+        friends = Friend.objects.filter(
+            Q(follower__nickname__icontains=name) | Q(followed__nickname__icontains=name),
+            are_we_friend=True
+        ).exclude(id=me.id)
+
+        serializer = self.get_serializer(friends, many=True)
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def get_all_friends(self, request):
+        me = request.user  # 현재 요청을 보낸 사용자
+
+        # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
+        friends = Friend.objects.filter(are_we_friend=True).exclude(id=me.id)
+
+        # 가져온 객체들을 시리얼라이즈
+        serializer = self.get_serializer(friends, many=True)
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
         
 

@@ -1,1 +1,1 @@
-from .friends import FriendReqResView
+from .friends import FriendReqResView, SearchFriendsView

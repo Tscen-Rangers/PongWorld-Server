@@ -64,11 +64,24 @@ class BlocksView(viewsets.ModelViewSet):
 
         return Response({'message': f'You unblocked user {blocked.nickname}.'}, status=status.HTTP_201_CREATED)
 
-    @extend_schema(request=None)
-    def get_blocking_users(self, request):
+class SearchBlockingView(viewsets.ModelViewSet):
+    serializer_class = BlockSerializer
+
+    @extend_schema(operation_id='search_friends')
+    def get_blockings(self, request, name):
         me = request.user
 
-        blocks = Block.objects.filter(blocker=me)
+        blocks = Block.objects.filter(blocked__nickname__icontains=name).exclude(id=me.id)
+
+        serializer = self.get_serializer(blocks, many=True)
+    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(request=None)
+    def get_all_blockings(self, request):
+        me = request.user
+
+        blocks = Block.objects.filter(blocker=me).exclude(id=me.id)
 
         # 가져온 객체들을 시리얼라이즈
         serializer = self.get_serializer(blocks, many=True)
