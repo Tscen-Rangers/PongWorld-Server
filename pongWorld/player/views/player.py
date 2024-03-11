@@ -120,7 +120,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         return Response({'player': serializer.data, 'games': games_data}, status=status.HTTP_200_OK)
 
 
-class SearchUsers(viewsets.ModelViewSet):
+class SearchUserView(viewsets.ModelViewSet):
     serializer_class = SearchPlayerSerializer
 
     @extend_schema(operation_id='search_players_by_name')
@@ -128,7 +128,7 @@ class SearchUsers(viewsets.ModelViewSet):
         me = request.user
 
         # 'name'을 포함한 nickname을 가진 플레이어들을 쿼리
-        users = Player.objects.filter(nickname__icontains=name)
+        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id)
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
@@ -138,12 +138,11 @@ class SearchUsers(viewsets.ModelViewSet):
     def get_all_users(self, request):
         me = request.user
 
-        users = Player.objects.filter()
+        users = Player.objects.filter(is_superuser=False).exclude(id=me.id)
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 
 

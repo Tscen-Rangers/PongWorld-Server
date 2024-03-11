@@ -1,1 +1,1 @@
-from .blocks import BlocksView
+from .blocks import BlocksView, SearchBlockingView
