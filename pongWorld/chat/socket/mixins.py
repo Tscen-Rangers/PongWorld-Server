@@ -64,12 +64,14 @@ class ChatMixin:
             await self.send_error_message("Chatroom creation failed.")
             return
 
+        is_new = await self.enter_chatroom()
+
         self.private_room_group = f'chat_private_{self.chatroom.id}'
         await self.channel_layer.group_add(self.private_room_group, self.channel_name)
         await self.send(text_data=json.dumps({
-            "chatroom_id": self.chatroom.id
+            "chatroom_id": self.chatroom.id,
+            "is_new": is_new
         }))
-        await self.enter_chatroom()
         await self.reset_unread_count()
 
     async def leave_private_chat(self):
@@ -161,16 +163,20 @@ class ChatMixin:
 
     @database_sync_to_async
     def enter_chatroom(self):
+        new_enter = False
         with transaction.atomic():
             chatroom = ChatRoom.objects.select_for_update().get(id=self.chatroom.id)
             chatroom.last_send_time = timezone.now()
             if chatroom.user1 == self.user and not chatroom.is_user1_in:
                 chatroom.is_user1_in = True
                 chatroom.user1_participate_time = timezone.now()
+                new_enter = True
             elif chatroom.user2 == self.user and not chatroom.is_user2_in:
                 chatroom.is_user2_in = True
                 chatroom.user2_participate_time = timezone.now()
+                new_enter = True
             chatroom.save()
+        return new_enter
 
     @database_sync_to_async
     def reset_unread_count(self):
