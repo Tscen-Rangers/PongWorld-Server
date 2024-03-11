@@ -3,13 +3,26 @@ from player.models import Player
 from game.models import Game, Tournament
 from django.utils import timezone
 import humanize
+from typing import Optional
 
 
 class PlayerSerializer(serializers.ModelSerializer):
 
+    player_profile_img = serializers.SerializerMethodField()
+
     class Meta:
         model = Player
-        fields = ['nickname', 'profile_img', 'total_score']
+        fields = ['nickname', 'player_profile_img', 'total_score']
+
+    def get_player_profile_img(self, player):
+        if player.profile_img:
+            # Get the absolute URL using build_absolute_uri
+            return self.build_absolute_uri(player.profile_img.url)
+        return None
+
+    @staticmethod
+    def build_absolute_uri(url):
+        return f"http://127.0.0.1:8000{url}"  # Replace with your actual domain and port
 
 class GameRoomSerializer(serializers.ModelSerializer):
 
