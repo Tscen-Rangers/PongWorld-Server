@@ -75,6 +75,8 @@ class ChatMixin:
         await self.reset_unread_count()
 
     async def leave_private_chat(self):
+        if self.chatroom is None:
+            return
         await self.reset_unread_count()
         await self.channel_layer.group_discard(self.private_room_group, self.channel_name)
         self.chatroom = None
