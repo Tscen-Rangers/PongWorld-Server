@@ -128,7 +128,7 @@ class SearchUserView(viewsets.ModelViewSet):
         me = request.user
 
         # 'name'을 포함한 nickname을 가진 플레이어들을 쿼리
-        users = Player.objects.filter(nickname__icontains=name).exclude(id=me.id)
+        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id)
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
@@ -138,7 +138,7 @@ class SearchUserView(viewsets.ModelViewSet):
     def get_all_users(self, request):
         me = request.user
 
-        users = Player.objects.filter().exclude(id=me.id)
+        users = Player.objects.filter(is_superuser=False).exclude(id=me.id)
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
