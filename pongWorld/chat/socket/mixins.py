@@ -83,6 +83,8 @@ class ChatMixin:
         self.chat_receiver_id = None
 
     async def message_private_chat(self, text_data_json):
+        if self.chatroom is None:
+            return
         user = self.user
         new_message = await self.new_message(text_data_json)
         if new_message is None:
