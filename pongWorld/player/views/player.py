@@ -3,22 +3,63 @@ from rest_framework import generics, viewsets, status
 from rest_framework.pagination import CursorPagination
 from django.http import Http404
 from rest_framework.response import Response
+from django.core.files.storage import default_storage
+import os
+from django.conf import settings
 
 from ..models import Player
-from ..serializers import PlayerSerializer, SearchPlayerSerializer
+from ..serializers import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
 from game.models import Game
 from game.serializers import GameSerializer
 
-class PlayerRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = PlayerSerializer
 
-    def get_object(self):
+class PlayerSettingView(viewsets.ModelViewSet):
+    serializer_class = PlayerSettingSerializer
+
+    def get_queryset(self):
+        return Player.objects.filter(id=self.request.user.id)
+
+    def get_user_info(self, request):
         try:
-            user_id = self.request.user.id
-            return Player.objects.get(id=user_id)
+            user_id = request.user.id
+            user = Player.objects.get(id=user_id)
+            serializer = self.get_serializer(user, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except Player.DoesNotExist:
-            raise Http404
+            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
+    def set_user_info(self, request, pk):
+        try:
+            user = self.get_queryset()
+
+            serializer = self.get_serializer(user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+            # 업데이트된 정보를 시리얼라이즈하여 반환
+            updated_user = Player.objects.get(id=user_id)
+            updated_serializer = self.get_serializer(updated_user, context={'request': request})
+            return Response(updated_serializer.data, status=status.HTTP_200_OK)
+        except Player.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+            
+    def withdraw(self, request):
+        try:
+            user_id = request.user.id
+            user = Player.objects.get(id=user_id)
+
+            # delete user profile image from media
+            profile_img_path = str(user.profile_img)
+            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
+            if full_profile_img_path and default_storage.exists(full_profile_img_path):
+                default_storage.delete(full_profile_img_path)
+
+            user.delete()
+
+            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_200_OK)
+        except Player.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'

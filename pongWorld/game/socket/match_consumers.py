@@ -59,8 +59,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         self.game = Game.objects.create(
             player1=self.player,
             mode=0,
-            speed=self.speed,
-            status=0)
+            speed=self.speed)
 
     async def join_game(self):
         try:
@@ -176,8 +175,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             player1=self.players_queue[0],
             player2=self.players_queue[1],
             player3=self.players_queue[2],
-            player4=self.players_queue[3],
-            status=0
+            player4=self.players_queue[3]
         )
         self.players_queue.clear()
         return tournament
@@ -390,5 +388,4 @@ class GameMixin:
             player1=self.player,
             player2=self.player2,
             mode=1,
-            speed=self.speed,
-            status=0)
+            speed=self.speed)
