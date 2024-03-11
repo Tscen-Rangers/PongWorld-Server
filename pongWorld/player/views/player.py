@@ -120,7 +120,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         return Response({'player': serializer.data, 'games': games_data}, status=status.HTTP_200_OK)
 
 
-class SearchUsers(viewsets.ModelViewSet):
+class SearchUserView(viewsets.ModelViewSet):
     serializer_class = SearchPlayerSerializer
 
     @extend_schema(operation_id='search_players_by_name')
@@ -143,7 +143,6 @@ class SearchUsers(viewsets.ModelViewSet):
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 
 
