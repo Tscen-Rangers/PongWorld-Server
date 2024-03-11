@@ -2,6 +2,9 @@ from rest_framework import generics, viewsets, status
 from rest_framework.pagination import CursorPagination
 from django.http import Http404
 from rest_framework.response import Response
+from django.core.files.storage import default_storage
+import os
+from django.conf import settings
 
 from ..models import Player
 from ..serializers import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
@@ -39,9 +42,23 @@ class PlayerSettingView(viewsets.ModelViewSet):
         except Player.DoesNotExist:
             return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
             
-    # def withdraw(self):
-        
+    def withdraw(self, request):
+        try:
+            user_id = request.user.id
+            user = Player.objects.get(id=user_id)
 
+            # delete user profile image from media
+            profile_img_path = str(user.profile_img)
+            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
+            if full_profile_img_path and default_storage.exists(full_profile_img_path):
+                default_storage.delete(full_profile_img_path)
+
+            user.delete()
+
+            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_200_OK)
+        except Player.DoesNotExist:
+            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
+        
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'
