@@ -17,6 +17,7 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
         if self.user.is_authenticated:
             self.player_id = self.user.id
 
+            self.chatroom = None
             self.online_users_group = 'online_users'
             self.player_group = f'player_{self.player_id}'
             await self.channel_layer.group_add(self.online_users_group, self.channel_name)
