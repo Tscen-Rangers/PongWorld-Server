@@ -295,35 +295,39 @@ class GameMixin:
         await self.send(text_data=json.dumps(response_data))
 
     async def response_competition(self, text_data_json):
-        self.game_id = text_data_json['game_id']
-        self.game_group_name = f'game_{self.game_id}'
-        accepted = text_data_json['accepted']
-        self.game = await save_game_by_id(self)
-
-        if accepted:
+        try:
+            self.game_id = text_data_json['game_id']
+            self.game_group_name = f'game_{self.game_id}'
+            accepted = text_data_json['accepted']
+            self.game = await save_game_by_id(self)
             await self.channel_layer.group_add(self.game_group_name, self.channel_name)
-            setattr(self.game, 'status', 1)
-            await database_sync_to_async(self.game.save)()
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_message',
-                    'message': "The match has been completed. The game will start soon!",
-                }, 
-            )
-            self.socket_message = 'START_FRIEND_GAME'
-            await start_game(self)
 
-        else:
-            await database_sync_to_async(self.game.delete)()
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_message',
-                    'message': "The match has been rejected.",
-                }, 
-            )
-            await self.close()
+            if accepted:
+                setattr(self.game, 'status', 1)
+                await database_sync_to_async(self.game.save)()
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_message',
+                        'message': "The match has been completed. The game will start soon!",
+                    }, 
+                )
+                self.socket_message = 'START_FRIEND_GAME'
+                await start_game(self)
+
+            else:
+                await database_sync_to_async(self.game.delete)()
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_message',
+                        'message': "The match has been rejected.",
+                    }, 
+                )
+                await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+        except Game.DoesNotExist:
+            error_message = json.dumps({"error": "Invalid Game ID"}, ensure_ascii=False)
+            await self.send(text_data=error_message)
 
     async def request_competition(self, text_data_json):
         try:
@@ -345,12 +349,27 @@ class GameMixin:
             )
             self.game_group_name = f'game_{self.game.id}'
             await self.channel_layer.group_add(self.game_group_name, self.channel_name)
-            # await send_game_info(self)
+            self.socket_message = 'INVITE_GAME'
+            await send_game_info(self)
 
         except ValueError as e:
             error_message = json.dumps({"error": str(e)}, ensure_ascii=False)
             await self.send(text_data=error_message)
-            await self.close()
+
+    async def quit_competition(self, text_data_json):
+        try:
+            self.game_id = text_data_json['game_id']
+            self.game_group_name = f'game_{self.game_id}'
+            self.game = await save_game_by_id(self)
+            if self.player == self.game.player1 and self.game.status == 0:
+                await database_sync_to_async(self.game.delete)()
+                await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+                await self.send(text_data=json.dumps({"message": "Quit Game Successfully."}))
+            else:
+                raise Exception('You cannot quit now.')
+        except Exception as e:
+            await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
+
 
     async def check_player2(self, player2_id):
         if player2_id == self.player.id:
@@ -370,12 +389,13 @@ class GameMixin:
     
     async def handle_pvp_game(self, text_data_json):
         self.player = self.user
-        role = text_data_json['role']
-        await self.roles[role](self, text_data_json)
+        command = text_data_json['command']
+        await self.commands[command](self, text_data_json)
 
-    roles = {
+    commands = {
         'request': request_competition,
-        'response': response_competition
+        'response': response_competition,
+        'quit': quit_competition,
     }
 
     async def game_message(self, event):
