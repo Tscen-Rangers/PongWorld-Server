@@ -2,13 +2,13 @@ import json
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.conf import settings
 from django.db.models import F
 from django.utils import timezone
 
 from chat.socket.mixins import ChatMixin
 from game.socket.match_consumers import GameMixin
 from player.models import Player
+from config.utils import CommonUtils
 
 class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
     async def connect(self):
@@ -32,14 +32,11 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
                     'type': 'user.online',
                     'user_id': self.player_id,
                     'nickname': self.user.nickname,
-                    'profile_img': self.get_full_url(self.user.profile_img.url)
+                    'profile_img': CommonUtils.get_full_url(self.user.profile_img.url)
                 }
             )
         else:
             await self.close()
-
-    def get_full_url(self, relative_url):
-        return f'{settings.MY_SITE_SCHEME}://{settings.MY_SITE_DOMAIN}{relative_url}'
 
     @database_sync_to_async
     def update_user_connection(self):
