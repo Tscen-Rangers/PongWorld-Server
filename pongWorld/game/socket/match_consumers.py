@@ -88,6 +88,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
                 self.game_group_name,
                 {
                     'type': 'game_message',
+                    'message_type': 'SUCCESS_RANDOM_MATCHING',
                     'message': "The match has been completed. The game will start soon!",
                 }, 
             )
@@ -95,8 +96,10 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
             await start_game(self)
     
     async def game_message(self, event):
+        message_type = event['message_type']
         message = event['message']
         await self.send(text_data=json.dumps({
+            'type': message_type,
             'message': message,
         },
         ))
@@ -206,6 +209,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             self.tournament_group_name,
             {
                 'type': 'game_message',
+                'message_type': 'SUCCESS_TOURNAMENT_MATCHING',
                 'message': "The match has been completed. The game will start soon!",
             },
         )
@@ -271,22 +275,26 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     }
 
     async def game_message(self, event):
+        message_type = event['message_type']
         message = event['message']
         await self.send(text_data=json.dumps({
+            'type': message_type,
             'message': message,
-        },ensure_ascii=False 
+        },
         ))
 
 class GameMixin:
 
     async def match_request_message(self, event):
         message = event['message']
+        message_type = event['message_type']
         opponent_profile_img = CommonUtils.get_full_url(event.get('opponent_profile_img', None))
         opponent_nickname = event.get('opponent_nickname', None)
         game_id = event.get('game_id', None)
         mode = event.get('mode', None)
 
         response_data = {
+            'type': message_type,
             'message': message,
             'opponent_profile_img': opponent_profile_img,
             'opponent_nickname': opponent_nickname,
@@ -295,9 +303,6 @@ class GameMixin:
         }
 
         await self.send(text_data=json.dumps(response_data))
-
-    def get_full_url(self, relative_url):
-        return f'{settings.MY_SITE_SCHEME}://{settings.MY_SITE_DOMAIN}{relative_url}'
 
     async def response_competition(self, text_data_json):
         try:
@@ -314,6 +319,7 @@ class GameMixin:
                     self.game_group_name,
                     {
                         'type': 'game_message',
+                        'message_type': 'SUCCESS_FRIEND_GAME',
                         'message': "The match has been completed. The game will start soon!",
                     }, 
                 )
@@ -326,12 +332,13 @@ class GameMixin:
                     self.game_group_name,
                     {
                         'type': 'game_message',
+                        'message_type': 'REJECTED_FRIEND_GAME',
                         'message': "The match has been rejected.",
                     }, 
                 )
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
         except Game.DoesNotExist:
-            error_message = json.dumps({"error": "Invalid Game ID"}, ensure_ascii=False)
+            error_message = json.dumps({"type": "INVALID_GAME", "message": "Invalid Game ID"}, ensure_ascii=False)
             await self.send(text_data=error_message)
 
     async def request_competition(self, text_data_json):
@@ -345,6 +352,7 @@ class GameMixin:
                 self.player_group_name,
                 {
                     'type': 'match_request_message',
+                    'message_type': 'REQUEST_MATCHING',
                     'message': "You have a request for a game competition.",
                     'opponent_profile_img': self.player.profile_img.url,
                     'opponent_nickname': self.player.nickname,
@@ -369,7 +377,7 @@ class GameMixin:
             if self.player == self.game.player1 and self.game.status == 0:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
-                await self.send(text_data=json.dumps({"message": "Quit Game Successfully."}))
+                await self.send(text_data=json.dumps({"type": "QUIT_FRIEND_GAME", "message": "Quit Game Successfully."}))
             else:
                 raise Exception('You cannot quit now.')
         except Exception as e:
@@ -404,8 +412,13 @@ class GameMixin:
     }
 
     async def game_message(self, event):
+        message_type = event['message_type']
         message = event['message']
-        await self.send(text_data=json.dumps({ 'message': message, }))
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'message': message,
+        },
+        ))
 
     @database_sync_to_async
     def create_friend_match_room(self):
