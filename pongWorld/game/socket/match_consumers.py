@@ -2,13 +2,15 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
-from game.models import Game, Tournament
-from player.models import Player
 from urllib.parse import parse_qs
 from django.db.models import Min
+
 from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSerializer
 from .common_utils import start_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
+from game.models import Game, Tournament
+from player.models import Player
 from .game_consumers import GameConsumer
+from config.utils import CommonUtils
 
 class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
 
@@ -279,14 +281,10 @@ class GameMixin:
 
     async def match_request_message(self, event):
         message = event['message']
-        opponent_profile_img = event.get('opponent_profile_img', None)
+        opponent_profile_img = CommonUtils.get_full_url(event.get('opponent_profile_img', None))
         opponent_nickname = event.get('opponent_nickname', None)
         game_id = event.get('game_id', None)
         mode = event.get('mode', None)
-
-        profile_img_url_prefix = "http://127.0.0.1:8000"
-        if opponent_profile_img:
-            opponent_profile_img = profile_img_url_prefix + opponent_profile_img
 
         response_data = {
             'message': message,
@@ -297,6 +295,9 @@ class GameMixin:
         }
 
         await self.send(text_data=json.dumps(response_data))
+
+    def get_full_url(self, relative_url):
+        return f'{settings.MY_SITE_SCHEME}://{settings.MY_SITE_DOMAIN}{relative_url}'
 
     async def response_competition(self, text_data_json):
         try:
