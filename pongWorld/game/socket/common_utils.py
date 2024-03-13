@@ -11,15 +11,12 @@ async def start_game(consumer_instance):
 
 async def send_game_state(consumer_instance):
     game_state = consumer_instance.pvp_game.get_game_state()
-    data = {
-        'type': consumer_instance.socket_message,
-        'game_state': game_state
-    }
     await consumer_instance.channel_layer.group_send(
         consumer_instance.game_group_name,
         {
             'type': 'game_info',
-            'data': data
+            'message_type': consumer_instance.socket_message,
+            'data': game_state
         },
     )
 
@@ -39,15 +36,12 @@ def get_pvp_serializer_data(consumer_instance):
 async def send_game_info(consumer_instance):
         consumer_instance.game_group_name = f'game_{consumer_instance.game.id}'
         serializer_data = await get_pvp_serializer_data(consumer_instance)
-        data = {
-            'type': consumer_instance.socket_message,
-            'game_info': serializer_data
-        }
         await consumer_instance.channel_layer.group_add(consumer_instance.game_group_name, consumer_instance.channel_name)
         await consumer_instance.channel_layer.group_send(
             consumer_instance.game_group_name,
             {
                 'type': 'game_info',
-                'data': data
+                'message_type': consumer_instance.socket_message,
+                'data': serializer_data
             }
         )
