@@ -80,8 +80,9 @@ class PlayerProfileView(viewsets.ModelViewSet):
 
         current_user = Player.objects.get(id=me.id)
         serializer = PlayerSerializer(current_user)
-        games = Game.objects.filter(player1=me) | Game.objects.filter(player2=me)
+        games = (Game.objects.filter(player1=me) | Game.objects.filter(player2=me)) & Game.objects.filter(status=2)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
+            games = games.order_by('-created_at')[:3]
             game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': current_user.id})
             games_data = game_serializer.data
         else:
@@ -103,15 +104,17 @@ class PlayerProfileView(viewsets.ModelViewSet):
             return Response({'error': 'User ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
         if game_record_type == 0: # total
-            games = Game.objects.filter(player1=user) | Game.objects.filter(player2=user)
+            games = (Game.objects.filter(player1=user) | Game.objects.filter(player2=user)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
+                games = games.order_by('-created_at')[:3]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
                 return Response({'player': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)
         elif game_record_type == 1: # with me
-            games = Game.objects.filter(player1=me, player2=user) | Game.objects.filter(player1=user, player2=me)
+            games = (Game.objects.filter(player1=me, player2=user) | Game.objects.filter(player1=user, player2=me)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
+                games = games.order_by('-created_at')[:3]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
@@ -128,7 +131,7 @@ class SearchUserView(viewsets.ModelViewSet):
         me = request.user
 
         # 'name'을 포함한 nickname을 가진 플레이어들을 쿼리
-        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id)
+        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id).order_by('nickname')
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
@@ -138,7 +141,7 @@ class SearchUserView(viewsets.ModelViewSet):
     def get_all_users(self, request):
         me = request.user
 
-        users = Player.objects.filter(is_superuser=False).exclude(id=me.id)
+        users = Player.objects.filter(is_superuser=False).exclude(id=me.id).order_by('nickname')
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     

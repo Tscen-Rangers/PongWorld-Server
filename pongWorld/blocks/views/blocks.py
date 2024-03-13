@@ -71,7 +71,7 @@ class SearchBlockingView(viewsets.ModelViewSet):
     def get_blockings(self, request, name):
         me = request.user
 
-        blocks = Block.objects.filter(blocked__nickname__icontains=name).exclude(id=me.id)
+        blocks = Block.objects.filter(blocked__nickname__icontains=name).order_by('blocked__nickname')
 
         serializer = self.get_serializer(blocks, many=True)
     
@@ -81,7 +81,7 @@ class SearchBlockingView(viewsets.ModelViewSet):
     def get_all_blockings(self, request):
         me = request.user
 
-        blocks = Block.objects.filter(blocker=me).exclude(id=me.id)
+        blocks = Block.objects.filter(blocker=me).order_by('blocked__nickname')
 
         # 가져온 객체들을 시리얼라이즈
         serializer = self.get_serializer(blocks, many=True)

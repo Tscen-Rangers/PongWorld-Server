@@ -2,7 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema
-from django.db.models import Q
+from django.db.models import Q, F, CharField, Case, Value, When
 
 from ..models import Friend
 from player.models import Player
@@ -83,7 +83,7 @@ class FriendReqResView(viewsets.ModelViewSet):
         user = request.user  # 현재 요청을 보낸 사용자
 
         # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
-        followers = Friend.objects.filter(follower=user, are_we_friend=False)
+        followers = Friend.objects.filter(follower=user, are_we_friend=False).order_by('-created_at')
 
         # 가져온 객체들을 시리얼라이즈
         serializer = self.get_serializer(followers, many=True)
@@ -95,7 +95,7 @@ class FriendReqResView(viewsets.ModelViewSet):
         user = request.user  # 현재 요청을 보낸 사용자
 
         # 현재 사용자를 followed로 갖는 Friend 객체들을 가져옴
-        followeds = Friend.objects.filter(followed=user, are_we_friend=False)
+        followeds = Friend.objects.filter(followed=user, are_we_friend=False).order_by('-created_at')
 
         # 가져온 객체들을 시리얼라이즈
         serializer = self.get_serializer(followeds, many=True)
@@ -140,9 +140,15 @@ class SearchFriendsView(viewsets.ModelViewSet):
         me = request.user
 
         friends = Friend.objects.filter(
-            Q(follower__nickname__icontains=name) | Q(followed__nickname__icontains=name),
-            are_we_friend=True
-        ).exclude(id=me.id)
+            Q(follower=me, followed__nickname__icontains=name, are_we_friend=True) |
+            Q(followed=me, follower__nickname__icontains=name, are_we_friend=True)
+        ).annotate(
+            friend_nickname=Case(
+                When(follower__nickname__icontains=name, then='follower__nickname'),
+                When(followed__nickname__icontains=name, then='followed__nickname'),
+                output_field=CharField()
+            )
+        ).order_by('friend_nickname')
 
         serializer = self.get_serializer(friends, many=True)
     
@@ -152,8 +158,13 @@ class SearchFriendsView(viewsets.ModelViewSet):
     def get_all_friends(self, request):
         me = request.user  # 현재 요청을 보낸 사용자
 
-        # 현재 사용자를 follower로 갖는 Friend 객체들을 가져옴
-        friends = Friend.objects.filter(are_we_friend=True).exclude(id=me.id)
+        friends = Friend.objects.filter(are_we_friend=True).annotate(
+            other_person_nickname=Case(
+                When(follower=me, then=F('followed__nickname')),
+                When(followed=me, then=F('follower__nickname')),
+                output_field=CharField()
+            )
+        ).order_by('other_person_nickname')
 
         # 가져온 객체들을 시리얼라이즈
         serializer = self.get_serializer(friends, many=True)
