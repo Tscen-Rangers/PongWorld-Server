@@ -13,6 +13,7 @@ urlpatterns = [
     path('friends/', include (('friends.urls', 'api'))),
     path('block/', include (('blocks.urls', 'api'))),
     path('chat/', include('chat.urls')),
+    path('game/', include('game.urls')),
     path('tcen-auth/', include('tcen_auth.urls')),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
