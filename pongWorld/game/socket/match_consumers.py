@@ -44,8 +44,10 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
 
     async def game_info(self, event):
         data = event['data']
+        message_type = event['message_type']
 
         await self.send(text_data=json.dumps({
+            'type': message_type,
             'data': data,
         }))
 
@@ -147,6 +149,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     TournamentMatchConsumer.tournament_group_name,
                     {
                         'type': 'game_info',
+                        'message_type': 'TOURNAMENT_PARTICIPANTS',
                         'data': serializer_data
                     }
                 )
@@ -163,8 +166,10 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def game_info(self, event):
         data = event['data']
+        message_type = event['message_type']
 
         await self.send(text_data=json.dumps({
+            'type': message_type,
             'data': data,
         }))
 
@@ -209,7 +214,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             self.tournament_group_name,
             {
                 'type': 'game_message',
-                'message_type': 'SUCCESS_TOURNAMENT_MATCHING',
+                'message_type': 'SUCCESS_SEMI_FINAL_MATCHING',
                 'message': "The match has been completed. The game will start soon!",
             },
         )
@@ -253,15 +258,12 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     async def start_semi_final(self, player1, player2, speed):
         self.round1 = GameConsumer(player1, player2, speed)
         game_state = self.round1.get_game_state()
-        data = {
-            'type': 'START_TOURNAMENT_SEMI_FINAL',
-            'game_state': game_state
-        }
         await self.channel_layer.group_send(
             self.tournament_semi_group_name,
             {
                 'type': 'game_info',
-                'data': data
+                'message_type': 'START_TOURNAMENT_SEMI_FINAL',
+                'data': game_state
             },
         )
 
@@ -395,8 +397,10 @@ class GameMixin:
 
     async def game_info(self, event):
         data = event['data']
+        message_type = event['message_type']
 
         await self.send(text_data=json.dumps({
+            'type': message_type,
             'data': data,
         }))
     
