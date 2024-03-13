@@ -56,7 +56,7 @@ class PlayerSettingView(viewsets.ModelViewSet):
 
             user.delete()
 
-            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_200_OK)
+            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_204_NO_CONTENT)
         except Player.DoesNotExist:
             return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
         
@@ -99,7 +99,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
                 user = Player.objects.get(id=user_id)
                 serializer = PlayerSerializer(user, context={'request': request})
             except Player.DoesNotExist:
-                return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({'error': 'User ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 

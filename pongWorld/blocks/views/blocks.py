@@ -19,7 +19,7 @@ class BlocksView(viewsets.ModelViewSet):
             try:
                 to_block = Player.objects.get(id=to_block_id)
             except Player.DoesNotExist:
-                return Response({'error': 'Player does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({'error': 'Player ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -28,7 +28,7 @@ class BlocksView(viewsets.ModelViewSet):
 
         # 이미 block 했는지 확인
         if Block.objects.filter(blocker=me.id, blocked=to_block.id).exists():
-            return Response({'error': 'Already blocked'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Already blocked'}, status=status.HTTP_409_CONFLICT)
         
         block_instance = Block(blocker=me, blocked=to_block)
         block_instance.save()
@@ -51,18 +51,18 @@ class BlocksView(viewsets.ModelViewSet):
             try:
                 blocked = Player.objects.get(id=blocked_id)
             except Player.DoesNotExist:
-                return Response({'error': 'Player does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({'error': 'Blocked ID is missing'}, status=status.HTTP_400_BAD_REQUEST)
 
         # block 한 상태인지 확인
         if not Block.objects.filter(blocker=me.id, blocked=blocked.id).exists():
-            return Response({'error': 'No record of blocking'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'No record of blocking'}, status=status.HTTP_409_CONFLICT)
         
         blocks = Block.objects.get(blocker=me, blocked=blocked)
         blocks.delete()
 
-        return Response({'message': f'You unblocked user {blocked.nickname}.'}, status=status.HTTP_201_CREATED)
+        return Response({'message': f'You unblocked user {blocked.nickname}.'}, status=status.HTTP_204_NO_CONTENT)
 
 class SearchBlockingView(viewsets.ModelViewSet):
     serializer_class = BlockSerializer
