@@ -92,19 +92,24 @@ class GameSerializer(serializers.ModelSerializer):
     def get_who_is_user(self, obj):
         user_id = self.context.get('user_id', None)
 
-        if user_id is not None:
-            if obj.player1.id == user_id:
-                return 'player1'
-            elif obj.player2.id == user_id:
-                return 'player2'
-
+        if user_id is None:
+            return None
+        if obj.player1.id == user_id:
+            return 'player1'
+        elif obj.player2.id == user_id:
+            return 'player2'
         raise ValueError("Invalid user_id")
-
+        
     def get_is_win(self, obj):
-        me = self.context['request'].user
-        if me == obj.winner:
+        user_id = self.context.get('user_id', None)
+
+        if user_id is None:
+            return None
+        if user_id == obj.winner.id:
             return 1 # 승리
-        return 0    # 패배
+        else:
+            return 0    # 패배
+        raise ValueError("Invalid user_id")
 
     def get_date(self, obj):
         time_diff = timezone.now() - obj.created_at
