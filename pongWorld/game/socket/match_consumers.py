@@ -284,6 +284,10 @@ class GameMixin:
         game_id = event.get('game_id', None)
         mode = event.get('mode', None)
 
+        profile_img_url_prefix = "http://127.0.0.1:8000"
+        if opponent_profile_img:
+            opponent_profile_img = profile_img_url_prefix + opponent_profile_img
+
         response_data = {
             'message': message,
             'opponent_profile_img': opponent_profile_img,
