@@ -79,7 +79,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         me = request.user
 
         current_user = Player.objects.get(id=me.id)
-        serializer = PlayerSerializer(current_user)
+        serializer = PlayerSerializer(current_user, context={'request': request})
         games = (Game.objects.filter(player1=me) | Game.objects.filter(player2=me)) & Game.objects.filter(status=2)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
             games = games.order_by('-created_at')[:3]

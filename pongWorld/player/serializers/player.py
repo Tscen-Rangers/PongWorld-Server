@@ -1,13 +1,11 @@
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import OpenApiTypes
+from django.db.models import Q
 
 from ..models import Player
 from friends.models import Friend
 from blocks.models import Block
-from drf_spectacular.utils import extend_schema_field
-from drf_spectacular.utils import OpenApiTypes
-
-from django.db.models import Q
-
 
 class PlayerSettingSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,14 +15,16 @@ class PlayerSettingSerializer(serializers.ModelSerializer):
 
 class PlayerSerializer(serializers.ModelSerializer):
     is_online = serializers.SerializerMethodField()
+    ranking = serializers.SerializerMethodField()
 
     class Meta:
         model = Player
         profile_img = serializers.ImageField(use_url=True)
-        fields = ["id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score", "is_online"]
+        fields = ["id", "nickname", "email", "profile_img", "intro", "ranking", "matches", "wins", "total_score", "is_online"]
         extra_kwargs = {
             "id": {"read_only": True},
             "email": {"read_only": True},
+            "ranking": {"read_only": True},
             "matches": {"read_only": True},
             "wins": {"read_only": True},
             "total_score": {"read_only": True},
@@ -39,6 +39,17 @@ class PlayerSerializer(serializers.ModelSerializer):
 
     def get_is_online(self, obj) -> bool:
         return obj.online_count > 0
+
+    def get_ranking(self, obj) -> int:
+        
+        player_score = obj.total_score
+        # 특정 플레이어보다 높은 점수를 가진 플레이어 수를 계산합니다.
+        higher_rank_count = Player.objects.filter(total_score__gt=player_score).count()
+
+        # 특정 플레이어의 순위를 계산합니다.
+        player_rank = higher_rank_count + 1
+
+        return player_rank
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_id(self, obj):
