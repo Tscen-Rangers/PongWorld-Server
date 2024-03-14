@@ -42,10 +42,10 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         user = self.scope['user'] # 닉네임으로도 식별가능
         data = json.loads(text_data)
         await self.random_matching(data) # TODO: 조건화로 게임시작하기 전에만 실행하도록
-        # 진행중인 게임에서 오는 요청일떄 
-        if data['type'] == 'send_update_paddle': # 임시 type
-            if hasattr(self, 'pvp_game'):
-                self.pvp_game.calculate_paddle_statue(user.id, data['key_code'])
+        # # 진행중인 게임에서 오는 요청일떄 
+        # if data['type'] == 'send_update_paddle': # 임시 type
+        #     if hasattr(self, 'pvp_game'):
+        #         self.pvp_game.calculate_paddle_statue(user.id, data['key_code'])
 
     async def game_info(self, event):
         data = event['data']
@@ -112,6 +112,8 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         ))
 
     async def disconnect(self, close_code):
+        if self.player == self.game.player1 and self.game.status == 0:
+            await database_sync_to_async(self.game.delete)()
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
 
 class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
