@@ -39,8 +39,13 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         await self.check_matching_complete()
 
     async def receive(self, text_data):
+        user = self.scope['user'] # 닉네임으로도 식별가능
         data = json.loads(text_data)
-        await self.random_matching(data)
+        await self.random_matching(data) # TODO: 조건화로 게임시작하기 전에만 실행하도록
+        # 진행중인 게임에서 오는 요청일떄 
+        if data['type'] == 'send_update_paddle': # 임시 type
+            if hasattr(self, 'pvp_game'):
+                self.pvp_game.calculate_paddle_statue(user.id, data['key_code'])
 
     async def game_info(self, event):
         data = event['data']

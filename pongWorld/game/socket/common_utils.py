@@ -8,6 +8,7 @@ from ..serializers import GameRoomSerializer
 async def start_game(consumer_instance):
     consumer_instance.pvp_game = GameConsumer(consumer_instance.game.player1, consumer_instance.game.player2, consumer_instance.game.speed)
     await send_game_state(consumer_instance)
+    consumer_instance.pvp_game.start_game_loop()  # 루프시작
 
 async def send_game_state(consumer_instance):
     game_state = consumer_instance.pvp_game.get_game_state()
