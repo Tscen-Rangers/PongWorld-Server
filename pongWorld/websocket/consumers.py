@@ -3,10 +3,12 @@ import json
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.db.models import F
+from django.db.models import Q
 from django.utils import timezone
 
 from chat.socket.mixins import ChatMixin
 from game.socket.match_consumers import GameMixin
+from blocks.models import Block
 from player.models import Player
 from config.utils import CommonUtils
 
@@ -54,16 +56,23 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
         return user.online_count == 0
     
     async def user_online(self, event):
+        user_id = event['user_id']
+        if await self.is_blocked_user(user_id):
+            return
+
         await self.send(text_data=json.dumps({
             'type': 'user_online',
-            'user_id': event['user_id'],
+            'user_id': user_id,
             'nickname': event['nickname'],
             'profile_img': event['profile_img']
         }))
     async def user_offline(self, event):
+        user_id = event['user_id']
+        if await self.is_blocked_user(user_id):
+            return
         await self.send(text_data=json.dumps({
             'type': 'user_offline',
-            'user_id': event['user_id'],
+            'user_id': user_id,
             'nickname': event['nickname'],
             'profile_img': event['profile_img']
         }))
@@ -107,3 +116,22 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
         await self.send(text_data=json.dumps({
             "error": message
         }, ensure_ascii=False))
+
+
+    # 내가 블락한 유저인지
+    @database_sync_to_async
+    def is_blocked_user(self, user_id):
+        return Block.objects.filter(Q(blocker=self.user.id) & Q(blocked=user_id)).exists()
+
+    # 내가 상대 유저에게 블락되었는지
+    @database_sync_to_async
+    def am_i_blocked_by_user(self, user_id):
+        return Block.objects.filter(Q(blocker=user_id) & Q(blocked=self.user.id)).exists()
+
+    # 상호차단 상태 확인 (둘 중 하나만 블락했어도 True)
+    @database_sync_to_async
+    def check_mutual_block_status(self, user_id):
+        return Block.objects.filter(
+            Q(blocker=self.user.id, blocked=user_id) |
+            Q(blocker=user_id, blocked=self.user.id)
+        ).exists()

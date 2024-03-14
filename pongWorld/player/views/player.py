@@ -1,19 +1,20 @@
+import os
+
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, viewsets, status
 from rest_framework.pagination import CursorPagination
 from django.http import Http404
 from rest_framework.response import Response
 from django.core.files.storage import default_storage
-import os
 from django.conf import settings
 from django.db.models import Subquery
 
 from ..models import Player
 from ..serializers import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
+from blocks.models import Block
 from game.models import Game
 from game.serializers import GameSerializer
 from blocks.models import Block
-
 
 class PlayerSettingView(viewsets.ModelViewSet):
     serializer_class = PlayerSettingSerializer
@@ -71,7 +72,8 @@ class OnlinePlayerListView(generics.ListAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        return Player.objects.filter(online_count__gt=0).exclude(id=user_id)
+        blocked_users = Block.objects.filter(blocker_id=user_id).values_list('blocked_id', flat=True)
+        return Player.objects.filter(online_count__gt=0).exclude(id__in=blocked_users).exclude(id=user_id)
 
 class PlayerProfileView(viewsets.ModelViewSet):
     serializer_class = PlayerSerializer
