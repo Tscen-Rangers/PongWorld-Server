@@ -75,6 +75,26 @@ class OnlinePlayerListView(generics.ListAPIView):
         blocked_users = Block.objects.filter(blocker_id=user_id).values_list('blocked_id', flat=True)
         return Player.objects.filter(online_count__gt=0).exclude(id__in=blocked_users).exclude(id=user_id)
 
+class OnlinePlayerSearchView(generics.ListAPIView):
+    serializer_class = PlayerSerializer
+    pagination_class = CustomPlayerPagination
+
+    def get_queryset(self):
+        user_id = self.request.user.id
+        name = self.kwargs.get('name', '')
+        blocked_users = Block.objects.filter(blocker_id=user_id).values_list('blocked_id', flat=True)
+
+        queryset = Player.objects.filter(
+            online_count__gt=0,
+            nickname__icontains=name
+        ).exclude(
+            id__in=blocked_users
+        ).exclude(
+            id=user_id
+        )
+
+        return queryset
+
 class PlayerProfileView(viewsets.ModelViewSet):
     serializer_class = PlayerSerializer
 

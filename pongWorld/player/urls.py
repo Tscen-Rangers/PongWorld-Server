@@ -5,6 +5,7 @@ app_name = "player"
 
 urlpatterns = [
     path('online/', views.OnlinePlayerListView.as_view()),
+    path('online/<str:name>', views.OnlinePlayerSearchView.as_view()),
     path('setting/', views.PlayerSettingView.as_view({'get': 'get_user_info'}), name="get_user_info"),
     path('setting/<int:pk>/', views.PlayerSettingView.as_view({'patch': 'partial_update'}), name="set_user_info"),
     path('withdraw/', views.PlayerSettingView.as_view({'delete': 'withdraw'}), name="user_withdraw"),
