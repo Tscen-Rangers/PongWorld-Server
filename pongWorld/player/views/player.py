@@ -6,11 +6,13 @@ from rest_framework.response import Response
 from django.core.files.storage import default_storage
 import os
 from django.conf import settings
+from django.db.models import Subquery
 
 from ..models import Player
 from ..serializers import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
 from game.models import Game
 from game.serializers import GameSerializer
+from blocks.models import Block
 
 
 class PlayerSettingView(viewsets.ModelViewSet):
@@ -131,7 +133,11 @@ class SearchUserView(viewsets.ModelViewSet):
         me = request.user
 
         # 'name'을 포함한 nickname을 가진 플레이어들을 쿼리
-        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id).order_by('nickname')
+        users = Player.objects.filter(nickname__icontains=name, is_superuser=False).exclude(id=me.id).exclude(
+                    id__in=Subquery(
+                        Block.objects.filter(blocked=me).values('blocker') # 나를 block한 사람은 안보이도록
+                    )
+                ).order_by('nickname')
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
@@ -141,7 +147,11 @@ class SearchUserView(viewsets.ModelViewSet):
     def get_all_users(self, request):
         me = request.user
 
-        users = Player.objects.filter(is_superuser=False).exclude(id=me.id).order_by('nickname')
+        users = Player.objects.filter(is_superuser=False).exclude(id=me.id).exclude(
+                    id__in=Subquery(
+                        Block.objects.filter(blocked=me).values('blocker') # 나를 block한 사람은 안보이도록
+                    )
+                ).order_by('nickname')
 
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
