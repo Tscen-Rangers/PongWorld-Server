@@ -46,6 +46,12 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
     @database_sync_to_async
     def update_user_disconnection(self):
         Player.objects.filter(id=self.user.id).update(online_count=F('online_count')-1)
+        user = Player.objects.get(id=self.user.id)
+
+    @database_sync_to_async
+    def is_user_offline(self):
+        user = Player.objects.get(id=self.user.id)
+        return user.online_count == 0
     
     async def user_online(self, event):
         await self.send(text_data=json.dumps({
@@ -64,18 +70,20 @@ class ConnectConsumer(AsyncWebsocketConsumer, ChatMixin, GameMixin):
 
     async def disconnect(self, close_code):
         if self.user.is_authenticated:
+
             await self.update_user_disconnection()
             await self.channel_layer.group_discard(self.online_users_group, self.channel_name)
             await self.channel_layer.group_discard(self.player_group, self.channel_name)
-            await self.channel_layer.group_send(
-                self.online_users_group,
-                {
-                    'type': 'user.offline',
-                    'user_id': self.player_id,
-                    'nickname': self.user.nickname,
-                    'profile_img': self.get_full_url(self.user.profile_img.url)
-                }
-            )
+            if await self.is_user_offline():
+                await self.channel_layer.group_send(
+                    self.online_users_group,
+                    {
+                        'type': 'user.offline',
+                        'user_id': self.player_id,
+                        'nickname': self.user.nickname,
+                        'profile_img': CommonUtils.get_full_url(self.user.profile_img.url)
+                    }
+                )
 
     async def receive(self, text_data=None, bytes_data=None):
         try:

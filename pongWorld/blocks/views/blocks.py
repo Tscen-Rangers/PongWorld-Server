@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from player.models import Player
 from friends.models import Friend
+from chat.models import ChatRoom
 from ..models import Block
 from ..serializers import BlockSerializer
 from django.db.models import Q
@@ -39,6 +40,17 @@ class BlocksView(viewsets.ModelViewSet):
         try:
             friend_instance = Friend.objects.get(friend_query)
             friend_instance.delete()
+        except ObjectDoesNotExist:
+            pass
+
+        chatroom_query = Q(user1_id=me.id) & Q(user2_id=to_block.id) | Q(user1_id=to_block.id) & Q(user2_id=me.id)
+        try:
+            chatroom_instance = ChatRoom.objects.get(chatroom_query)
+            if chatroom_instance.user1 == me:
+                chatroom_instance.is_user1_in = False
+            else:
+                chatroom_instance.is_user2_in = False
+            chatroom_instance.save()
         except ObjectDoesNotExist:
             pass
 

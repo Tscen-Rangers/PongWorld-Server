@@ -3,5 +3,5 @@ from .models import Player
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ("id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score")
-    fields = ("nickname", "email", "profile_img", "intro", "matches", "wins", "total_score")
+    list_display = ("id", "nickname", "email", "profile_img", "intro", "matches", "wins", "total_score", "online_count")
+    fields = ("nickname", "email", "profile_img", "intro", "matches", "wins", "total_score", "online_count")

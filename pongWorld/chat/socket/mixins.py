@@ -3,10 +3,12 @@ import json
 from channels.db import database_sync_to_async
 from django.db import transaction
 from django.db.models import F
+from django.db.models import Q
 from django.utils import timezone
 
 from chat.models import ChatRoom, Message
 from player.models import Player
+from blocks.models import Block
 
 class ChatMixin:
     async def handle_public_chat(self, text_data_json):
@@ -59,9 +61,15 @@ class ChatMixin:
             await self.send_error_message("Receiver id not provided")
             return
 
+        if await self.is_blocked_user(self.chat_receiver_id):
+            await self.send_error_message("Cannot start a private chat with a blocked user.")
+            self.chat_receiver_id = None
+            return
+
         self.chatroom, created = await self.get_or_create_chatroom(self.chat_receiver_id)
         if self.chatroom is None:
             await self.send_error_message("Chatroom creation failed.")
+            self.chat_receiver_id = None
             return
 
         is_new = await self.enter_chatroom()
@@ -74,6 +82,8 @@ class ChatMixin:
         }))
         await self.reset_unread_count()
 
+
+
     async def leave_private_chat(self):
         if self.chatroom is None:
             return
@@ -84,14 +94,17 @@ class ChatMixin:
 
     async def message_private_chat(self, text_data_json):
         if self.chatroom is None:
+            await self.send_error_message("Chatroom does not exist")
             return
+
         user = self.user
         new_message = await self.new_message(text_data_json)
         if new_message is None:
             await self.send_error_message("Message not provided")
             return
 
-        await self.update_chatroom(new_message)
+        am_i_blocked = await self.am_i_blocked_by_user(self.chat_receiver_id)
+        await self.update_chatroom(new_message, am_i_blocked)
 
         await  self.channel_layer.group_send(
             self.private_room_group, {
@@ -103,6 +116,9 @@ class ChatMixin:
         })
 
         await self.refresh_chatroom()
+
+        if am_i_blocked:
+            return
 
         if self.chatroom.user1 == self.user:
             unread_count = self.chatroom.msg_count_1
@@ -135,6 +151,9 @@ class ChatMixin:
         nickname = event['nickname']
         message = event['message']
         created_at = event['created_at']
+
+        if await self.is_blocked_user(user_id):
+            return
 
         await self.send(text_data=json.dumps({
                 "type": "private_chat",
@@ -194,14 +213,23 @@ class ChatMixin:
             chatroom.save()
 
     @database_sync_to_async
-    def update_chatroom(self, new_message):
+    def update_chatroom(self, new_message, am_i_blocked):
         with transaction.atomic():
             chatroom = ChatRoom.objects.select_for_update().get(id=self.chatroom.id)
             chatroom.last_send_time = timezone.now()
             if chatroom.user1 == self.user:
-                chatroom.msg_count_1 = F('msg_count_1') + 1
+                if am_i_blocked:
+                    chatroom.msg_count_1 = 0
+                else:
+                    chatroom.msg_count_1 = F('msg_count_1') + 1
             else:
-                chatroom.msg_count_2 = F('msg_count_2') + 1
+                if am_i_blocked:
+                    chatroom.msg_count_1 = 0
+                else:
+                    chatroom.msg_count_2 = F('msg_count_2') + 1
+            if am_i_blocked:
+                chatroom.save()
+                return
             if not chatroom.is_user1_in:
                 chatroom.is_user1_in = True
                 chatroom.user1_participate_time = new_message.created_at
@@ -229,3 +257,13 @@ class ChatMixin:
     @database_sync_to_async
     def refresh_chatroom(self):
         self.chatroom.refresh_from_db()
+
+    # 내가 블락한 유저인지
+    @database_sync_to_async
+    def is_blocked_user(self, user_id):
+        return Block.objects.filter(Q(blocker=self.user.id) & Q(blocked=user_id)).exists()
+
+    # 내가 상대 유저에게 블락되었는지
+    @database_sync_to_async
+    def am_i_blocked_by_user(self, user_id):
+        return Block.objects.filter(Q(blocker=user_id) & Q(blocked=self.user.id)).exists()
