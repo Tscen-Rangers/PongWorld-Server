@@ -185,7 +185,7 @@ SPECTACULAR_SETTINGS = {
     # General schema metadata. Refer to spec for valid inputs
     # https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#openapi-object
     'TITLE': 'Pong World API',
-    'DESCRIPTION': 'Pong Worols API 명세서입니다.',
+    'DESCRIPTION': 'Pong World API 명세서입니다.',
     # Optional: MAY contain "name", "url", "email"
     # Swagger UI를 좀더 편리하게 사용하기위해 기본옵션들을 수정한 값들입니다.
     'SWAGGER_UI_SETTINGS': {
