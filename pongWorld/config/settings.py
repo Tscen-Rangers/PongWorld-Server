@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 import os
 import json
 from django.core.exceptions import ImproperlyConfigured
@@ -24,6 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 secret_file = os.path.join(BASE_DIR, 'secrets.json')
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = 'true'
 
 with open(secret_file) as f:
     secrets = json.loads(f.read())
@@ -59,14 +61,21 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     'daphne',
     'rest_framework',
+    'rest_framework_simplejwt',
     'drf_spectacular',
+    'oauth2_provider',
     'corsheaders',
+    'humanize',
 ]
 
 LOCAL_APPS = [
     'player',
     'game',
-    'chat'
+    'chat',
+    'tcen_auth',
+    'websocket',
+    'friends',
+    'blocks'
 ]
 
 INSTALLED_APPS = THIRD_PARTY_APPS +  DJANGO_APPS + LOCAL_APPS
@@ -76,6 +85,12 @@ REST_FRAMEWORK = {
         'config.renderers.CustomRenderer',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication'
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
 }
 
 MIDDLEWARE = [
@@ -170,7 +185,7 @@ SPECTACULAR_SETTINGS = {
     # General schema metadata. Refer to spec for valid inputs
     # https://github.com/OAI/OpenAPI-Specification/blob/master/versions/3.0.3.md#openapi-object
     'TITLE': 'Pong World API',
-    'DESCRIPTION': 'Pong Worols API 명세서입니다.',
+    'DESCRIPTION': 'Pong World API 명세서입니다.',
     # Optional: MAY contain "name", "url", "email"
     # Swagger UI를 좀더 편리하게 사용하기위해 기본옵션들을 수정한 값들입니다.
     'SWAGGER_UI_SETTINGS': {
@@ -199,8 +214,11 @@ ASGI_APPLICATION = 'config.asgi.application'
 
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        'MIDDLEWARE': [
+            'channels.middleware.AuthMiddlewareStack',
+        ],
+    },
 }
 
 LOGGING = {
@@ -220,9 +238,63 @@ LOGGING = {
     },
 }
 
+T42_OAUTH2_CLIENT_ID = get_secret('T42_OAUTH2_CLIENT_ID')
+T42_OAUTH2_CLIENT_SECRET = get_secret('T42_OAUTH2_CLIENT_SECRET')
+T42_OAUTH2_REDIRECT_URI = get_secret('T42_OAUTH2_REDIRECT_URI')
+
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:5500',
     'http://localhost:5500',
 ]
 
 CORS_ALLOWED_CREDENTIALS = True
+
+AUTH_USER_MODEL = 'player.Player'
+
+SIMPLE_JWT = {
+    # "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    # "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=31),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "UPDATE_LAST_LOGIN": False,
+
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": "",
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JSON_ENCODER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+
+    "JTI_CLAIM": "jti",
+
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+
+    "TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainPairSerializer",
+    "TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSerializer",
+    "TOKEN_VERIFY_SERIALIZER": "rest_framework_simplejwt.serializers.TokenVerifySerializer",
+    "TOKEN_BLACKLIST_SERIALIZER": "rest_framework_simplejwt.serializers.TokenBlacklistSerializer",
+    "SLIDING_TOKEN_OBTAIN_SERIALIZER": "rest_framework_simplejwt.serializers.TokenObtainSlidingSerializer",
+    "SLIDING_TOKEN_REFRESH_SERIALIZER": "rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer",
+}
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+MY_SITE_SCHEME = 'http'
+MY_SITE_DOMAIN = '127.0.0.1:8000'

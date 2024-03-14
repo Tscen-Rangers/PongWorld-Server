@@ -33,7 +33,7 @@ class Game(TimestampBaseModel):
         (1, "In Progress"),
         (2, "End Game")
     )
-    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES)
+    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES, default=0)
 
     class Meta:
         db_table = "game"
@@ -51,7 +51,7 @@ class Tournament(TimestampBaseModel):
         (0, "In Progress"),
         (1, "End Game")
     )
-    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES)
+    status = models.PositiveIntegerField(choices=GAME_STATUS_CHOICES, default=0)
 
     class Meta:
         db_table = "tournament"
