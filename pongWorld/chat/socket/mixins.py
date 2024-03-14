@@ -3,7 +3,6 @@ import json
 from channels.db import database_sync_to_async
 from django.db import transaction
 from django.db.models import F
-from django.db.models import Q
 from django.utils import timezone
 
 from chat.models import ChatRoom, Message
@@ -33,6 +32,9 @@ class ChatMixin:
         nickname = event['nickname']
         message = event['message']
         created_at = event['created_at']
+
+        if await self.is_blocked_user(user_id):
+            return
 
         await self.send(text_data=json.dumps({
             "type": "public_chat",
@@ -258,12 +260,3 @@ class ChatMixin:
     def refresh_chatroom(self):
         self.chatroom.refresh_from_db()
 
-    # 내가 블락한 유저인지
-    @database_sync_to_async
-    def is_blocked_user(self, user_id):
-        return Block.objects.filter(Q(blocker=self.user.id) & Q(blocked=user_id)).exists()
-
-    # 내가 상대 유저에게 블락되었는지
-    @database_sync_to_async
-    def am_i_blocked_by_user(self, user_id):
-        return Block.objects.filter(Q(blocker=user_id) & Q(blocked=self.user.id)).exists()
