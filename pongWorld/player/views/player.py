@@ -9,7 +9,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 
 from ..models import Player
-from ..serializers import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
+from ..serializers import *
 from blocks.models import Block
 from game.models import Game
 from game.serializers import GameSerializer
@@ -94,7 +94,6 @@ class OnlinePlayerSearchView(generics.ListAPIView):
         return queryset
 
 class PlayerProfileView(viewsets.ModelViewSet):
-    serializer_class = PlayerSerializer
 
     @extend_schema(operation_id='get_my_profile')
     def get_my_profile(self, request):
@@ -119,7 +118,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         if user_id is not None:
             try:
                 user = Player.objects.get(id=user_id)
-                serializer = PlayerSerializer(user, context={'request': request})
+                serializer = PlayerProfileSerializer(user, context={'request': request})
             except Player.DoesNotExist:
                 return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
         else:
