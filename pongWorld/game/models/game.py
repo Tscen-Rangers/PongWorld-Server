@@ -22,9 +22,9 @@ class Game(TimestampBaseModel):
     # input_device = models.PositiveIntegerField(choices=DEVICE_MODES_CHOICES)
 
     GAME_LEVEL_CHOICES = (
-        (0, "Easy"),
-        (1, "Normal"),
-        (2, "Hard"),
+        (1, "Easy"),
+        (2, "Normal"),
+        (3, "Hard"),
     )
     speed = models.PositiveIntegerField(choices=GAME_LEVEL_CHOICES)
 
