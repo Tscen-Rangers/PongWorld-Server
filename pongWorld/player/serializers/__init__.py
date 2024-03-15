@@ -1,1 +1,1 @@
-from .player import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer
+from .player import PlayerSettingSerializer, PlayerSerializer, SearchPlayerSerializer, PlayerProfileSerializer
