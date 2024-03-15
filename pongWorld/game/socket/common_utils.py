@@ -4,14 +4,15 @@ from player.models import Player
 from game.models import Game, Tournament
 from channels.db import database_sync_to_async
 from ..serializers import GameRoomSerializer
+import asyncio
 
 async def start_game(consumer_instance):
-    consumer_instance.pvp_game = GameConsumer(consumer_instance.game.player1, consumer_instance.game.player2, consumer_instance.game.speed)
     await send_game_state(consumer_instance)
-    consumer_instance.pvp_game.start_game_loop()  # 루프시작
+    await asyncio.sleep(3)
+    asyncio.create_task(consumer_instance.rooms[consumer_instance.game.id].start_game_loop())  # 백그라운드에서 실행
 
 async def send_game_state(consumer_instance):
-    game_state = consumer_instance.pvp_game.get_game_state()
+    game_state = consumer_instance.rooms[consumer_instance.game.id].get_game_state()
     await consumer_instance.channel_layer.group_send(
         consumer_instance.game_group_name,
         {

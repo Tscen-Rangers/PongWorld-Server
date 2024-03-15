@@ -37,7 +37,7 @@ class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
     intro       = models.CharField(max_length=200, default='', blank=True)
     matches     = models.PositiveIntegerField(default=0)
     wins        = models.PositiveIntegerField(default=0)
-    total_score = models.PositiveIntegerField(default=0)
+    total_score = models.PositiveIntegerField(default=1000)
     online_count = models.PositiveIntegerField(default=0)
     last_login_time = models.DateTimeField()
 

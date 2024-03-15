@@ -4,6 +4,7 @@ from channels.db import database_sync_to_async
 from asgiref.sync import sync_to_async
 from urllib.parse import parse_qs
 from django.db.models import Min
+import asyncio
 
 from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSerializer
 from .common_utils import start_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
@@ -13,6 +14,7 @@ from .game_consumers import GameConsumer
 from config.utils import CommonUtils
 
 class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
+    rooms = {}
 
     async def connect(self):
         self.user = self.scope['user']
@@ -38,14 +40,25 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         # await send_game_info(self)
         await self.check_matching_complete()
 
+    async def move_paddle(self, data):
+        if self.game.id in RandomMatchConsumer.rooms:
+            asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
+
+    async def end_game(self, data):
+        if self.game.id in RandomMatchConsumer.rooms:
+            del RandomMatchConsumer.rooms[self.game.id]
+        await self.close()
+
     async def receive(self, text_data):
-        user = self.scope['user'] # 닉네임으로도 식별가능
         data = json.loads(text_data)
-        await self.random_matching(data) # TODO: 조건화로 게임시작하기 전에만 실행하도록
-        # # 진행중인 게임에서 오는 요청일떄 
-        # if data['type'] == 'send_update_paddle': # 임시 type
-        #     if hasattr(self, 'pvp_game'):
-        #         self.pvp_game.calculate_paddle_statue(user.id, data['key_code'])
+        command = data['command']
+        await self.commands[command](self, data)
+
+    commands = {
+        'participant': random_matching,
+        'move_paddle': move_paddle,
+        'end_game': end_game,
+    }
 
     async def game_info(self, event):
         data = event['data']
@@ -100,6 +113,8 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
                 }, 
             )
             self.socket_message = 'START_RANDOM_GAME'
+            if self.game.id not in RandomMatchConsumer.rooms:
+                RandomMatchConsumer.rooms[self.game.id] = GameConsumer(self)
             await start_game(self)
     
     async def game_message(self, event):
@@ -258,7 +273,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             player2 = self.tournament.player4
         try:    
             await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
-            await self.start_semi_final(player1, player2, 0)
+            await self.start_semi_final(player1, player2, 1)
         except Exception as e:
             print(f"Exception in send_opponent_info: {e}")
 
@@ -293,6 +308,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         ))
 
 class GameMixin:
+    rooms = {}
 
     async def match_request_message(self, event):
         message = event['message']
@@ -333,6 +349,8 @@ class GameMixin:
                     }, 
                 )
                 self.socket_message = 'START_FRIEND_GAME'
+                if self.game.id not in GameMixin.rooms:
+                    GameMixin.rooms[self.game.id] = GameConsumer(self)
                 await start_game(self)
 
             else:
@@ -392,7 +410,6 @@ class GameMixin:
         except Exception as e:
             await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
 
-
     async def check_player2(self, player2_id):
         if player2_id == self.player.id:
             raise ValueError('You cannot send an invitation to yourself.')
@@ -410,7 +427,16 @@ class GameMixin:
             'type': message_type,
             'data': data,
         }))
+
+    async def move_paddle(self, data):
+        if self.game.id in GameMixin.rooms:
+            asyncio.create_task(GameMixin.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
     
+    async def end_game(self, data):
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+        if self.game.id in GameMixin.rooms:
+            del GameMixin.rooms[self.game.id]
+
     async def handle_pvp_game(self, text_data_json):
         self.player = self.user
         command = text_data_json['command']
@@ -420,6 +446,8 @@ class GameMixin:
         'request': request_competition,
         'response': response_competition,
         'quit': quit_competition,
+        'move_paddle': move_paddle,
+        'end_game': end_game,
     }
 
     async def game_message(self, event):
