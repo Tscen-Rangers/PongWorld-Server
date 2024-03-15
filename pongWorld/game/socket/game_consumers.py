@@ -74,6 +74,14 @@ class GameConsumer:
             self.ball_position = [0, 0]
             self.player1_paddle_position = [-WALL_WIDTH_HALF, 0]
             self.player2_paddle_position = [WALL_WIDTH_HALF, 0]
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_info',
+                    'message_type': "INIT_PLAYERS_PADDLE_POSTITION",
+                    'data': self.get_paddles_position()
+                }
+            )
             self.ball_dx = -self.ball_dx  # 공의 방향을 반대로 변경
             self.ball_dy *= random.choice([-1, 1])
 
@@ -281,6 +289,13 @@ class GameConsumer:
                 'position': list(self.player2_paddle_position),
             }
         return paddle_position
+
+    def get_paddles_position(self):
+        paddles_position = {
+            'player1': list(self.player1_paddle_position),
+            'player2': list(self.player2_paddle_position),
+        }
+        return paddles_position
 
     def get_score(self, player_id):
         if player_id == self.player1.id:
