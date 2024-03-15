@@ -1,5 +1,6 @@
 from .game_config import *
 from ..serializers import PlayerSerializer
+from player.models import Player
 from channels.db import database_sync_to_async
 import asyncio
 import random
@@ -27,10 +28,13 @@ class GameConsumer:
         self.player1_score = 0
         self.player2_score = 0
         self.score_limit = 10
-        self.ball_dx = self.speed / 120
+        self.ball_dx = self.speed / 120 #TODO 공 크기 점점 빨라지는거랑 첨에 느린거
         self.ball_dy = self.speed / 120
     
     async def calculate_ball_state(self):
+
+        if self.ball_position == [0, 0]:
+            await asyncio.sleep(2)
 
         # 공의 위치 업데이트
         self.ball_position[0] += self.ball_dx
@@ -55,7 +59,6 @@ class GameConsumer:
         # 좌우 벽과의 충돌 처리
         if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF or \
         self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF:
-            await asyncio.sleep(2)
             # 점수 업데이트 및 공 위치 초기화 로직
             ## 왼쪽 벽 충돌
             if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF:
@@ -92,9 +95,12 @@ class GameConsumer:
                 # player1이 승리했을 때
                 if self.player1_score == self.score_limit:
                     setattr(self.game, 'winner', self.player1)
+                    player1_new_rating, player2_new_rating = self.calculate_new_ratings(self.player1.total_score, self.player2.total_score)
                 # player2가 승리했을 때
                 elif self.player2_score == self.score_limit:
                     setattr(self.game, 'winner', self.player2)
+                    player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
+                
                 # 게임 결과 전송
                 await self.channel_layer.group_send(
                     self.game_group_name,
@@ -105,9 +111,62 @@ class GameConsumer:
                     }
                 )
                 await database_sync_to_async(self.game.save)()
+
+                # new rating 반영
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'UPDATE_PLAYERS_NEW_RATING',
+                        'data': self.udpate_players_new_rating(player1_new_rating, player2_new_rating)
+                    }
+                )
+                # 점수 저장 전 현재 랭킹 가져오기
+                player1_ranking = self.get_ranking(self.player1.total_score)
+                player2_ranking = self.get_ranking(self.player2.total_score)
+
+                # new rating 저장
+                setattr(self.player1, 'total_score', player1_new_rating)
+                setattr(self.player2, 'total_score', player2_new_rating)
+                await database_sync_to_async(self.player1.save)()
+                await database_sync_to_async(self.player2.save)()
+
+                # new ranking 반영
+                player1_new_ranking = self.get_ranking(self.player1.total_score)
+                player2_new_ranking = self.get_ranking(self.player2.total_score)
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'UPDATE_PLAYERS_NEW_RANKING',
+                        'data': self.udpate_players_new_ranking(player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
+                    }
+                )
+
                 return False 
         
         return True
+
+    def calculate_new_ratings(self, winner_rating, loser_rating, k_factor=100): # k_factor 임의 조정
+        expected_win = self.expected_result(winner_rating, loser_rating)
+        change_in_rating = k_factor * (1 - expected_win)
+        
+        winner_new_rating = winner_rating + change_in_rating
+        loser_new_rating = loser_rating - change_in_rating
+        
+        return int(round(winner_new_rating)), int(round(loser_new_rating))
+
+    def expected_result(self, player_rating, opponent_rating):
+        return 1 / (1 + 10 ** ((opponent_rating - player_rating) / 400))
+
+    def get_ranking(self, player_score):
+        # 특정 플레이어보다 높은 점수를 가진 플레이어 수를 계산합니다.
+        higher_rank_count = Player.objects.filter(total_score__gt=player_score).count()
+
+        # 특정 플레이어의 순위를 계산합니다.
+        player_rank = higher_rank_count + 1
+
+        return player_rank
         
     async def calculate_paddle_status(self, player_id, key_code):
         move_speed = self.speed / 10 # 패들의 이동 속도
@@ -239,3 +298,34 @@ class GameConsumer:
             'winner': PlayerSerializer(self.game.winner).data,
         }
         return game_result
+
+    def udpate_players_new_rating(self, player1_new_rating, player2_new_rating):
+        new_rating = {
+            'player1': {
+                'original': self.player1.total_score,
+                'new': player1_new_rating,
+                'difference': player1_new_rating - self.player1.total_score,
+            },
+            'player2': {
+                'original': self.player2.total_score,
+                'new': player2_new_rating,
+                'difference': player2_new_rating - self.player2.total_score,
+            },
+        }
+        return new_rating
+
+    def udpate_players_new_ranking(self, player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking):
+        new_ranking = {
+            'player1': {
+                'original': player1_ranking,
+                'new': player1_new_ranking,
+                'difference': player1_new_ranking - player1_ranking
+            },
+            'player2': {
+                'original': player2_ranking,
+                'new': player2_new_ranking,
+                'difference': player2_new_ranking - player2_ranking
+            },
+        }
+        return new_ranking
+
