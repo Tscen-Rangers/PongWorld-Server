@@ -44,6 +44,11 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         if self.game.id in RandomMatchConsumer.rooms:
             asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
 
+    async def end_game(self, data):
+        if self.game.id in RandomMatchConsumer.rooms:
+            del RandomMatchConsumer.rooms[self.game.id]
+        await self.close()
+
     async def receive(self, text_data):
         data = json.loads(text_data)
         command = data['command']
@@ -52,6 +57,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
     commands = {
         'participant': random_matching,
         'move_paddle': move_paddle,
+        'end_game': end_game,
     }
 
     async def game_info(self, event):
@@ -426,6 +432,11 @@ class GameMixin:
         if self.game.id in GameMixin.rooms:
             asyncio.create_task(GameMixin.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
     
+    async def end_game(self, data):
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+        if self.game.id in GameMixin.rooms:
+            del GameMixin.rooms[self.game.id]
+
     async def handle_pvp_game(self, text_data_json):
         self.player = self.user
         command = text_data_json['command']
@@ -436,6 +447,7 @@ class GameMixin:
         'response': response_competition,
         'quit': quit_competition,
         'move_paddle': move_paddle,
+        'end_game': end_game,
     }
 
     async def game_message(self, event):
