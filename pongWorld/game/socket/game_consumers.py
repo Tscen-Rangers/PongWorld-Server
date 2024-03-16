@@ -29,8 +29,8 @@ class GameConsumer:
         self.player1_score = 0
         self.player2_score = 0
         self.score_limit = 10
-        self.ball_dx = self.speed / 50 #TODO 공 점점 빨라지는거랑 첨에 느린거
-        self.ball_dy = self.speed / 50
+        self.ball_dx = self.speed * 2 #TODO 공 점점 빨라지는거랑 첨에 느린거
+        self.ball_dy = self.speed * 2
     
     async def calculate_ball_state(self):
 
@@ -71,18 +71,8 @@ class GameConsumer:
                 self.player1_score += 1  # player1 점수 증가
                 message_type = "PLAYER1_GET_SCORE"
                 player_id = self.player1.id
-            ### 공, 패들 위치 초기화
+            ### 공 위치 초기화
             self.ball_position = [0, 0]
-            self.player1_paddle_position = [-WALL_WIDTH_HALF, 0]
-            self.player2_paddle_position = [WALL_WIDTH_HALF, 0]
-            await self.channel_layer.group_send(
-                self.game_group_name,
-                {
-                    'type': 'game_info',
-                    'message_type': "INIT_PLAYERS_PADDLE_POSTITION",
-                    'data': self.get_paddles_position()
-                }
-            )
             self.ball_dx = -self.ball_dx  # 공의 방향을 반대로 변경
             self.ball_dy *= random.choice([-1, 1])
 
@@ -177,47 +167,14 @@ class GameConsumer:
 
         return player_rank
         
-    async def calculate_paddle_status(self, player_id, key_code):
-        move_speed = self.speed / 10 # 패들의 이동 속도
-        message_type = None
-
+    async def change_paddle_position(self, player_id, y_coordinate):
         # 플레이어 1의 패들 위치 업데이트
         if player_id == self.player1.id:
-            if key_code == 38:  # 위쪽 화살표
-                new_paddle_pos = self.player1_paddle_position[1] + move_speed
-            elif key_code == 40:  # 아래쪽 화살표
-                new_paddle_pos = self.player1_paddle_position[1] - move_speed
-            else:
-                return  # 다른 키 입력은 무시
-
-            # 패들이 게임 영역 내에 있는지 확인
-            if self.bottom_wall_y < new_paddle_pos - 0.5 and new_paddle_pos + 0.5 < self.top_wall_y:
-                self.player1_paddle_position[1] = new_paddle_pos
-                message_type = "CHANGE_PLAYER1_PADDLE_POSTITION"
+            self.player1_paddle_position[1] = y_coordinate
 
         # 플레이어 2의 패들 위치 업데이트
         elif player_id == self.player2.id:
-            if key_code == 38:  # 위쪽 화살표
-                new_paddle_pos = self.player2_paddle_position[1] + move_speed
-            elif key_code == 40:  # 아래쪽 화살표
-                new_paddle_pos = self.player2_paddle_position[1] - move_speed
-            else:
-                return  # 다른 키 입력은 무시
-
-            # 패들이 게임 영역 내에 있는지 확인
-            if self.bottom_wall_y < new_paddle_pos - 0.5 and new_paddle_pos + 0.5 < self.top_wall_y:
-                self.player2_paddle_position[1] = new_paddle_pos
-                message_type = "CHANGE_PLAYER2_PADDLE_POSTITION"
-
-        # 패들 위치 업데이트 후 게임 상태를 전송
-        await self.channel_layer.group_send(
-            self.game_group_name,
-            {
-                'type': 'game_info',  # common_utils.py에서 처리할 수 있는 메시지 타입
-                'message_type': message_type,
-                'data': self.get_paddle_position(player_id)  # 게임 상태 데이터
-            }
-        )
+            self.player2_paddle_position[1] = y_coordinate
     
     async def start_game_loop(self):
         while True:
@@ -279,24 +236,6 @@ class GameConsumer:
             'position': list(self.ball_position)
         }
         return ball_position
-
-    def get_paddle_position(self, player_id):
-        if player_id == self.player1.id:
-            paddle_position = {
-                'position': list(self.player1_paddle_position),
-            }
-        elif player_id == self.player2.id:
-            paddle_position = {
-                'position': list(self.player2_paddle_position),
-            }
-        return paddle_position
-
-    def get_paddles_position(self):
-        paddles_position = {
-            'player1': list(self.player1_paddle_position),
-            'player2': list(self.player2_paddle_position),
-        }
-        return paddles_position
 
     def get_score(self, player_id):
         if player_id == self.player1.id:

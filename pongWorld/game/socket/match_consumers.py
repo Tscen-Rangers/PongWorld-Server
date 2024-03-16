@@ -42,7 +42,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
 
     async def move_paddle(self, data):
         if self.game.id in RandomMatchConsumer.rooms:
-            asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
+            asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].change_paddle_position(self.player.id, data['y_coordinate']))  # 백그라운드에서 실행
 
     async def end_game(self, data):
         if self.game.id in RandomMatchConsumer.rooms:
@@ -430,7 +430,7 @@ class GameMixin:
 
     async def move_paddle(self, data):
         if self.game.id in GameMixin.rooms:
-            asyncio.create_task(GameMixin.rooms[self.game.id].calculate_paddle_status(self.player.id, data['key_code']))  # 백그라운드에서 실행
+            asyncio.create_task(GameMixin.rooms[self.game.id].change_paddle_position(self.player.id, data['y_coordinate']))  # 백그라운드에서 실행
     
     async def end_game(self, data):
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
