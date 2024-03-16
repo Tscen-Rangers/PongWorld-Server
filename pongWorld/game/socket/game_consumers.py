@@ -29,8 +29,8 @@ class GameConsumer:
         self.player1_score = 0
         self.player2_score = 0
         self.score_limit = 10
-        self.ball_dx = self.speed / 120 #TODO 공 크기 점점 빨라지는거랑 첨에 느린거
-        self.ball_dy = self.speed / 120
+        self.ball_dx = self.speed / 50 #TODO 공 점점 빨라지는거랑 첨에 느린거
+        self.ball_dy = self.speed / 50
     
     async def calculate_ball_state(self):
 
