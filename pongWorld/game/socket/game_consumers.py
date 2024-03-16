@@ -4,6 +4,7 @@ from player.models import Player
 from channels.db import database_sync_to_async
 import asyncio
 import random
+import math
 
 
 # 세로 : 4.9
@@ -155,17 +156,17 @@ class GameConsumer:
         
         return True
 
-    def calculate_new_ratings(self, winner_rating, loser_rating, k_factor=100): # k_factor 임의 조정
+    def calculate_new_ratings(self, winner_rating, loser_rating, k_factor=32): # k_factor 임의 조정
         expected_win = self.expected_result(winner_rating, loser_rating)
         change_in_rating = k_factor * (1 - expected_win)
         
         winner_new_rating = winner_rating + change_in_rating
         loser_new_rating = loser_rating - change_in_rating
-        
+
         return int(round(winner_new_rating)), int(round(loser_new_rating))
 
     def expected_result(self, player_rating, opponent_rating):
-        return 1 / (1 + 10 ** ((opponent_rating - player_rating) / 400))
+        return 1 / (1 + math.pow(10, (opponent_rating - player_rating) / 400))
 
     def get_ranking(self, player_score):
         # 특정 플레이어보다 높은 점수를 가진 플레이어 수를 계산합니다.
