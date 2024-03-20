@@ -173,10 +173,22 @@ class GameConsumer:
         # 플레이어 1의 패들 위치 업데이트
         if player_id == self.player1.id:
             self.player1_paddle_position[1] = y_coordinate
+            message_type = "CHANGE_PLAYER1_PADDLE_POSTITION"
 
         # 플레이어 2의 패들 위치 업데이트
         elif player_id == self.player2.id:
             self.player2_paddle_position[1] = y_coordinate
+            message_type = "CHANGE_PLAYER2_PADDLE_POSTITION"
+
+        # 패들 위치 업데이트 후 게임 상태를 전송
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {
+                'type': 'game_info',
+                'message_type': message_type,
+                'data': self.get_paddle_position(player_id)  # 게임 상태 데이터
+            }
+        )
     
     async def start_game_loop(self):
         while True:
@@ -285,6 +297,17 @@ class GameConsumer:
             },
         }
         return new_ranking
+
+    def get_paddle_position(self, player_id):
+        if player_id == self.player1.id:
+            paddle_position = {
+                'position': list(self.player1_paddle_position),
+            }
+        elif player_id == self.player2.id:
+            paddle_position = {
+                'position': list(self.player2_paddle_position),
+            }
+        return paddle_position
 
 class TournamentGame(GameConsumer):
     def __init__(self, consumer_instance, player1, player2):
