@@ -9,4 +9,4 @@ class GameAdmin(admin.ModelAdmin):
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
     list_display = ("id", "player1", "player2", "player3", "player4", "winner", "status")
-    fields = ("player1", "player2", "player3", "player4")
+    fields = ("player1", "player2", "player3", "player4", "status")

@@ -16,21 +16,23 @@ import math
 class GameConsumer:
     def __init__(self, consumer_instance):
         self.channel_layer = consumer_instance.channel_layer
-        self.game = consumer_instance.game
-        self.game_group_name = consumer_instance.game_group_name
-        self.player1 = self.game.player1
-        self.player2 = self.game.player2
         self.ball_position = [0, 0]
         self.player1_paddle_position = [-WALL_WIDTH_HALF, 0]
         self.player2_paddle_position = [WALL_WIDTH_HALF, 0]
         self.top_wall_y = WALL_HEIGHT_HALF
         self.bottom_wall_y = -WALL_HEIGHT_HALF
-        self.speed = consumer_instance.game.speed
+        self.speed = consumer_instance.speed
         self.player1_score = 0
         self.player2_score = 0
-        self.score_limit = 10
+        self.score_limit = 3
         self.ball_dx = self.speed * 2 #TODO 공 점점 빨라지는거랑 첨에 느린거
         self.ball_dy = self.speed * 2
+
+    def init_game(self, consumer_instance):
+        self.game = consumer_instance.game
+        self.game_group_name = consumer_instance.game_group_name
+        self.player1 = self.game.player1
+        self.player2 = self.game.player2
     
     async def calculate_ball_state(self):
 
@@ -99,14 +101,14 @@ class GameConsumer:
                 elif self.player2_score == self.score_limit:
                     setattr(self.game, 'winner', self.player2)
                     player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
-                
+                winner = self.game.winner
                 # 게임 결과 전송
                 await self.channel_layer.group_send(
                     self.game_group_name,
                     {
                         'type': 'game_info',
                         'message_type': 'GAME_OVER',
-                        'data': self.get_game_result()
+                        'data': self.get_game_result(winner)
                     }
                 )
                 await database_sync_to_async(self.game.save)()
@@ -248,9 +250,9 @@ class GameConsumer:
             }
         return score
 
-    def get_game_result(self):
+    def get_game_result(self, winner):
         game_result = {
-            'winner': PlayerSerializer(self.game.winner).data,
+            'winner': PlayerSerializer(winner).data,
         }
         return game_result
 
@@ -284,3 +286,214 @@ class GameConsumer:
         }
         return new_ranking
 
+class TournamentGame(GameConsumer):
+    def __init__(self, consumer_instance, player1, player2):
+        super().__init__(consumer_instance)
+        self.tournament = consumer_instance.tournament
+        self.tournament_group_name = consumer_instance.tournament_group_name
+        self.player1 = player1
+        self.player2 = player2
+        self.winner = None
+        self.is_finish = False
+
+    # 준결승
+    async def start_tournament_semi_final_loop(self, consumer_instance):
+        self.game_group_name = consumer_instance.tournament_semi_group_name
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {
+                'type': 'game_info',
+                'message_type': 'START_TOURNAMENT_SEMI_FINAL',
+                'data': self.get_game_state()  
+            }
+        )
+        await asyncio.sleep(3)  
+        while True:
+            try:
+                # 공의 상태를 계산 중입니다.
+                if not await self.calculate_tournament_ball_state():
+                    break
+                # 패들 위치 업데이트 후 게임 상태를 전송합니다.
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'BALL_POSITION',
+                        'data': self.get_ball_position()  
+                    }
+                )
+                await asyncio.sleep(0.016) # 60FPS로 설정                
+            except Exception as e:
+                print(f"Error in semi_final_loop: {e}")  # 게임 루프 실행 중 오류가 발생한 경우 오류 메시지를 출력
+        
+        return self.winner
+    
+    # 결승
+    async def start_tournament_final_loop(self, consumer_instance):
+        self.game_group_name = consumer_instance.tournament_final_group_name
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {
+                'type': 'game_info',
+                'message_type': 'START_TOURNAMENT_FINAL',
+                'data': self.get_game_state()  
+            }
+        )
+        await asyncio.sleep(3)  
+        while True:
+            try:
+                # 공의 상태를 계산 중입니다.
+                if not await self.calculate_tournament_ball_state():
+                    break
+                # 패들 위치 업데이트 후 게임 상태를 전송합니다.
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'BALL_POSITION',
+                        'data': self.get_ball_position()  
+                    }
+                )
+                await asyncio.sleep(0.016) # 60FPS로 설정
+                
+            except Exception as e:
+                print(f"Error in final_loop: {e}")  # 게임 루프 실행 중 오류가 발생한 경우 오류 메시지를 출력
+
+    async def calculate_tournament_ball_state(self):
+
+        if self.ball_position == [0, 0]:
+            await asyncio.sleep(2)
+
+        # 공의 위치 업데이트
+        self.ball_position[0] += self.ball_dx
+        self.ball_position[1] += self.ball_dy
+
+        # 상단 및 하단 벽과의 충돌 처리
+        if self.ball_position[1] - BALL_RADIUS < -WALL_HEIGHT_HALF or self.ball_position[1] + BALL_RADIUS > WALL_HEIGHT_HALF:
+            self.ball_dy *= -1  # y축 방향 반전
+
+        # 패들과의 충돌 처리(x축 기준으로 동일한 위치이면서 y축기준으로 높이의 범위안에 들어오면 충돌로 간주)
+        
+        ## 왼쪽 패들 충돌
+        if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF + PADDLE_WIDTH_HALF and \
+        -PADDLE_HEIGHT_HALF < self.ball_position[1] - self.player1_paddle_position[1] < PADDLE_HEIGHT_HALF:
+            self.ball_dx = abs(self.ball_dx)  # x축 방향 반전
+
+        ## 오른쪽 패들 충돌
+        if self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF - PADDLE_WIDTH_HALF and \
+        -PADDLE_HEIGHT_HALF < self.ball_position[1] - self.player2_paddle_position[1] < PADDLE_HEIGHT_HALF:
+            self.ball_dx = -abs(self.ball_dx)  # x축 방향 반전
+
+        # 좌우 벽과의 충돌 처리
+        if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF or \
+        self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF:
+            # 점수 업데이트 및 공 위치 초기화 로직
+            ## 왼쪽 벽 충돌
+            if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF:
+                self.player2_score += 1  # player2 점수 증가
+                message_type = "PLAYER2_GET_SCORE"
+                player_id = self.player2.id
+            ## 오른쪽 벽 충돌
+            elif self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF:
+                self.player1_score += 1  # player1 점수 증가
+                message_type = "PLAYER1_GET_SCORE"
+                player_id = self.player1.id
+            ### 공 위치 초기화
+            self.ball_position = [0, 0]
+            self.ball_dx = -self.ball_dx  # 공의 방향을 반대로 변경
+            self.ball_dy *= random.choice([-1, 1])
+
+            # 게임 스코어 전송
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_info',
+                    'message_type': message_type,
+                    'data': self.get_score(player_id)
+                }
+            )
+            
+        ## 스코어 충족으로 인한 게임종료
+        if self.player1_score == self.score_limit or self.player2_score == self.score_limit:
+            if self.player1_score == self.score_limit:
+                self.winner = self.player1
+            elif self.player2_score == self.score_limit:
+                self.winner = self.player2
+            
+            self.is_finish = True
+
+            # 결승 종료
+            if self.game_group_name == f'tournament_{self.tournament.id}_final':
+                message_type = 'END_OF_FINAL'
+            elif self.game_group_name == f'tournament_{self.tournament.id}_A':
+                message_type = 'END_OF_SEMI_FINAL_A'
+            elif self.game_group_name == f'tournament_{self.tournament.id}_B':
+                message_type = 'END_OF_SEMI_FINAL_B'
+
+            # 게임 결과 전송
+            await self.channel_layer.group_send(
+                self.tournament_group_name,
+                {
+                    'type': 'game_info',
+                    'message_type': message_type,
+                    'data': self.get_game_result(self.winner)
+                }
+            )
+
+            # 결승전 끝났을 때
+            if self.game_group_name == f'tournament_{self.tournament.id}_final':
+                setattr(self.tournament, 'status', 1)
+                setattr(self.tournament, 'winner', self.winner)
+                await database_sync_to_async(self.tournament.save)()
+
+                winner_ranking = self.get_ranking(self.winner.total_score)
+
+                # new rating 반영
+                winner_new_rating = self.winner.total_score + 420
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'UPDATE_WINNER_NEW_RATING',
+                        'data': self.udpate_winner_new_rating(winner_new_rating)
+                    }
+                )
+
+                # new rating 저장
+                setattr(self.winner, 'total_score', winner_new_rating)
+                await database_sync_to_async(self.winner.save)()
+
+                # new ranking 반영
+                winner_new_ranking = self.get_ranking(self.winner.total_score)
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': 'UPDATE_WINNER_NEW_RANKING',
+                        'data': self.udpate_winner_new_ranking(winner_ranking, winner_new_ranking)
+                    }
+                )
+
+            return False
+        
+        return True
+
+    def udpate_winner_new_rating(self, winner_new_rating):
+        new_rating = {
+            'winner': {
+                'original': self.winner.total_score,
+                'new': winner_new_rating,
+                'difference': 1000,
+            }
+        }
+        return new_rating
+
+    def udpate_winner_new_ranking(self, winner_ranking, winner_new_ranking):
+        new_ranking = {
+            'winner': {
+                'original': winner_ranking,
+                'new': winner_new_ranking,
+                'difference': winner_new_ranking - winner_ranking
+            }
+        }
+        return new_ranking
