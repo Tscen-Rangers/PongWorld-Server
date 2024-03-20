@@ -10,7 +10,7 @@ from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSe
 from .common_utils import start_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
 from game.models import Game, Tournament
 from player.models import Player
-from .game_consumers import GameConsumer
+from .game_consumers import GameConsumer, TournamentGame
 from config.utils import CommonUtils
 
 class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
@@ -132,11 +132,11 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
 
 class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
+    rooms = {}
 
     players_queue = []
     tournament_tmp_id = 1
-    tournament_group_name = None
-    current_round = 1
+    tournament_tmp_group_name = None
 
     async def connect(self):
         self.user = self.scope['user']
@@ -159,16 +159,16 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 raise ValueError("Your matching is already in progress.")
 
             if not self.players_queue:
-                TournamentMatchConsumer.tournament_group_name = f'tournament_{TournamentMatchConsumer.tournament_tmp_id}'
+                TournamentMatchConsumer.itournament_tmp_group_name = f'tournament_tmp_{TournamentMatchConsumer.tournament_tmp_id}'
             self.players_queue.append(self.player)
-            await self.channel_layer.group_add(TournamentMatchConsumer.tournament_group_name, self.channel_name)
+            await self.channel_layer.group_add(TournamentMatchConsumer.itournament_tmp_group_name, self.channel_name)
             await self.send_queue_length()
             
             if len(self.players_queue) == 4:
                 self.tournament = await self.create_tournament_room()
                 serializer_data = await self.get_serializer_data()
                 await self.channel_layer.group_send(
-                    TournamentMatchConsumer.tournament_group_name,
+                    TournamentMatchConsumer.itournament_tmp_group_name,
                     {
                         'type': 'game_info',
                         'message_type': 'TOURNAMENT_PARTICIPANTS',
@@ -176,7 +176,6 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     }
                 )
                 await self.send_matching_complete()
-                self.players_queue.clear()
                 TournamentMatchConsumer.tournament_tmp_id += 1
 
         except ValueError as e:
@@ -198,9 +197,20 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     async def disconnect(self, close_code):
         if self.player in self.players_queue:
             self.players_queue.remove(self.player)
-            await self.channel_layer.group_discard(TournamentMatchConsumer.tournament_group_name, self.channel_name)
+            await self.channel_layer.group_discard(TournamentMatchConsumer.itournament_tmp_group_name, self.channel_name)
             await self.send_queue_length()
 
+    async def end_tournament(self, data):
+        if hasattr(self, 'tournament_final_group_name'):
+            await self.channel_layer.group_discard(self.tournament_final_group_name, self.channel_name)
+            if self.tournament_semi_group_name in TournamentMatchConsumer.rooms:
+                del TournamentMatchConsumer.rooms[self.tournament_semi_group_name]
+        if hasattr(self, 'tournament_final_group_name') and self.tournament_final_group_name in TournamentMatchConsumer.rooms:
+            del TournamentMatchConsumer.rooms[self.tournament_final_group_name]
+        if hasattr(self, 'tournament_semi_group_name'):
+            await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
+        await self.close()
+            
     @database_sync_to_async
     def create_tournament_room(self):
         tournament = Tournament.objects.create(
@@ -219,7 +229,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def send_queue_length(self):
         await self.channel_layer.group_send(
-            TournamentMatchConsumer.tournament_group_name,
+            TournamentMatchConsumer.itournament_tmp_group_name,
             {
                 'type': 'queue_length',
                 'participants_num': len(self.players_queue)
@@ -230,10 +240,8 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         await self.send(text_data=json.dumps({"participants_num": event["participants_num"]}))
 
     async def send_matching_complete(self):
-        setattr(self.tournament, 'status', 1)
-        await database_sync_to_async(self.tournament.save)()
         await self.channel_layer.group_send(
-            self.tournament_group_name,
+            TournamentMatchConsumer.itournament_tmp_group_name,
             {
                 'type': 'game_message',
                 'message_type': 'SUCCESS_SEMI_FINAL_MATCHING',
@@ -244,6 +252,8 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     async def semi_final(self, data):
         tournament_id = data['tournament_id']
         self.tournament = await database_sync_to_async(Tournament.objects.get)(id=tournament_id)
+        self.tournament_group_name = f'tournament_{self.tournament.id}'
+        await self.channel_layer.group_add(self.tournament_group_name, self.channel_name)
 
         players = {
             'player1': await database_sync_to_async(lambda: self.tournament.player1)(),
@@ -260,34 +270,46 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
         if current_player_role == 'player1' or current_player_role == 'player2':
             self.tournament_semi_group_name = f'tournament_{self.tournament.id}_A'
-        elif current_player_role == 'player3' or current_player_role == 'player4':
-            self.tournament_semi_group_name = f'tournament_{self.tournament.id}_B'
-        await self.send_opponent_info()
-
-    async def send_opponent_info(self):
-        if self.tournament_semi_group_name == f'tournament_{self.tournament.id}_A':
             player1 = self.tournament.player1
             player2 = self.tournament.player2
-        else:
+        elif current_player_role == 'player3' or current_player_role == 'player4':
+            self.tournament_semi_group_name = f'tournament_{self.tournament.id}_B'
             player1 = self.tournament.player3
             player2 = self.tournament.player4
-        try:    
-            await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
-            await self.start_semi_final(player1, player2, 1)
-        except Exception as e:
-            print(f"Exception in send_opponent_info: {e}")
+        await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
+        self.speed = 1
+        await self.start_semi_final(self.tournament_semi_group_name, player1, player2)
 
-    async def start_semi_final(self, player1, player2, speed):
-        self.round1 = GameConsumer(player1, player2, speed)
-        game_state = self.round1.get_game_state()
-        await self.channel_layer.group_send(
-            self.tournament_semi_group_name,
-            {
-                'type': 'game_info',
-                'message_type': 'START_TOURNAMENT_SEMI_FINAL',
-                'data': game_state
-            },
-        )
+    async def start_semi_final(self, tournament_group, player1, player2):
+        if tournament_group not in TournamentMatchConsumer.rooms:
+            TournamentMatchConsumer.rooms[tournament_group] = TournamentGame(self, player1, player2)
+        else:
+            return
+        TournamentMatchConsumer.rooms[tournament_group].winner = asyncio.create_task(TournamentMatchConsumer.rooms[tournament_group].start_tournament_semi_final_loop(self))
+        
+    async def final(self, data):
+        try:
+            if  TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].is_finish == False or \
+                TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].is_finish == False:
+                raise Exception('Please wait a moment. The game is in progress.')
+
+            if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
+                self.tournament_final_group_name = f'tournament_{self.tournament.id}_final'
+                await self.channel_layer.group_add(self.tournament_final_group_name, self.channel_name)
+
+                player1 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].winner
+                player2 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].winner
+
+                # 준결승 A, B팀 모두 끝난 후 결승 시작
+                if self.tournament_final_group_name not in TournamentMatchConsumer.rooms and player1 and player2:
+                    self.speed = 2
+                    TournamentMatchConsumer.rooms[self.tournament_final_group_name] = TournamentGame(self, player1, player2)
+                    asyncio.create_task(TournamentMatchConsumer.rooms[self.tournament_final_group_name].start_tournament_final_loop(self))
+            else:
+                raise Exception('You cannot start final round. You are not winner.')
+        except Exception as e:
+            await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
+
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -295,7 +317,9 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         await self.tournament_modes[tournament_mode](self, data)
 
     tournament_modes = {
-        'semi_final': semi_final
+        'semi_final': semi_final,
+        'final': final,
+        'end_tournament': end_tournament,
     }
 
     async def game_message(self, event):
@@ -335,6 +359,7 @@ class GameMixin:
             self.game_group_name = f'game_{self.game_id}'
             accepted = text_data_json['accepted']
             self.game = await save_game_by_id(self)
+            self.speed = self.game.speed
             await self.channel_layer.group_add(self.game_group_name, self.channel_name)
 
             if accepted:
@@ -398,9 +423,6 @@ class GameMixin:
 
     async def quit_competition(self, text_data_json):
         try:
-            self.game_id = text_data_json['game_id']
-            self.game_group_name = f'game_{self.game_id}'
-            self.game = await save_game_by_id(self)
             if self.player == self.game.player1 and self.game.status == 0:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
