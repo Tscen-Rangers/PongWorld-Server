@@ -310,6 +310,11 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         except Exception as e:
             await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
 
+    async def move_paddle(self, data):
+        if hasattr(self, 'tournament_final_group_name') and self.tournament_final_group_name in TournamentMatchConsumer.rooms:
+            asyncio.create_task(TournamentMatchConsumer.rooms[self.tournament_final_group_name].change_paddle_position(self.player.id, data['y_coordinate']))
+        elif self.tournament_semi_group_name in TournamentMatchConsumer.rooms:
+            asyncio.create_task(TournamentMatchConsumer.rooms[self.tournament_semi_group_name].change_paddle_position(self.player.id, data['y_coordinate']))
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -319,6 +324,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     tournament_modes = {
         'semi_final': semi_final,
         'final': final,
+        'move_paddle': move_paddle,
         'end_tournament': end_tournament,
     }
 
