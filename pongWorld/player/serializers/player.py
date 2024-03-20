@@ -11,7 +11,7 @@ class PlayerSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
         profile_img = serializers.ImageField(use_url=True)
-        fields = ["nickname", "profile_img", "intro"]
+        fields = ["id", "nickname", "profile_img", "intro"]
 
 class PlayerSerializer(serializers.ModelSerializer):
     is_online = serializers.SerializerMethodField()
