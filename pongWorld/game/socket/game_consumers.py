@@ -6,12 +6,11 @@ import asyncio
 import random
 import math
 
-
-# 세로 : 4.9
-# 가로 : 6.8
-# 공 지름 : 0.2
-# 패들 가로 : 0.2
-# 패들 세로 : 1.0
+# 세로 : 490
+# 가로 : 660
+# 공 지름 : 15
+# 패들 가로 : 11
+# 패들 세로 : 60
 
 class GameConsumer:
     def __init__(self, consumer_instance):
@@ -24,7 +23,6 @@ class GameConsumer:
         self.speed = consumer_instance.speed
         self.player1_score = 0
         self.player2_score = 0
-        self.score_limit = 10
         self.ball_dx = self.speed * 2 #TODO 공 점점 빨라지는거랑 첨에 느린거
         self.ball_dy = self.speed * 2
 
@@ -89,16 +87,16 @@ class GameConsumer:
             )
             
             ## 스코어 충족으로 인한 게임종료
-            if self.player1_score == self.score_limit or self.player2_score == self.score_limit:
+            if self.player1_score == SCORE_LIMIT or self.player2_score == SCORE_LIMIT:
                 setattr(self.game, 'player1_score', self.player1_score)
                 setattr(self.game, 'player2_score', self.player2_score)
                 setattr(self.game, 'status', 2)
                 # player1이 승리했을 때
-                if self.player1_score == self.score_limit:
+                if self.player1_score == SCORE_LIMIT:
                     setattr(self.game, 'winner', self.player1)
                     player1_new_rating, player2_new_rating = self.calculate_new_ratings(self.player1.total_score, self.player2.total_score)
                 # player2가 승리했을 때
-                elif self.player2_score == self.score_limit:
+                elif self.player2_score == SCORE_LIMIT:
                     setattr(self.game, 'winner', self.player2)
                     player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
                 winner = self.game.winner
@@ -437,10 +435,10 @@ class TournamentGame(GameConsumer):
             )
             
         ## 스코어 충족으로 인한 게임종료
-        if self.player1_score == self.score_limit or self.player2_score == self.score_limit:
-            if self.player1_score == self.score_limit:
+        if self.player1_score == SCORE_LIMIT or self.player2_score == SCORE_LIMIT:
+            if self.player1_score == SCORE_LIMIT:
                 self.winner = self.player1
-            elif self.player2_score == self.score_limit:
+            elif self.player2_score == SCORE_LIMIT:
                 self.winner = self.player2
             
             self.is_finish = True
