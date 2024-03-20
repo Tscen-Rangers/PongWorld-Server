@@ -24,7 +24,7 @@ class GameConsumer:
         self.speed = consumer_instance.speed
         self.player1_score = 0
         self.player2_score = 0
-        self.score_limit = 3
+        self.score_limit = 10
         self.ball_dx = self.speed * 2 #TODO 공 점점 빨라지는거랑 첨에 느린거
         self.ball_dy = self.speed * 2
 
