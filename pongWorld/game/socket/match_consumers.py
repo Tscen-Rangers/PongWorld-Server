@@ -129,7 +129,6 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
     async def disconnect(self, close_code):
         if self.player == self.game.player1 and self.game.status == 0:
             await database_sync_to_async(self.game.delete)()
-        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
 
 class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     rooms = {}
@@ -210,7 +209,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         if hasattr(self, 'tournament_semi_group_name'):
             await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
         await self.close()
-            
+
     @database_sync_to_async
     def create_tournament_room(self):
         tournament = Tournament.objects.create(
@@ -325,7 +324,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         'semi_final': semi_final,
         'final': final,
         'move_paddle': move_paddle,
-        'end_tournament': end_tournament,
+        'end_tournament': end_tournament
     }
 
     async def game_message(self, event):
@@ -433,8 +432,8 @@ class GameMixin:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
                 await self.send(text_data=json.dumps({"type": "QUIT_FRIEND_GAME", "message": "Quit Game Successfully."}))
-            else:
-                raise Exception('You cannot quit now.')
+            else:   # 게임 중에 나갈 때
+                await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
         except Exception as e:
             await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))
 
