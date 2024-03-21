@@ -9,7 +9,8 @@ urlpatterns = [
     path('42-login/', views.OAuthLoginURLView.as_view(), name='42_login'),
     path('pong-world-login/', views.OAuthCallbackView.as_view(), name='pong_world_login'),
     path('refresh-token/', TokenRefreshView.as_view(), name='token_refresh'),
-    # path('verify/', views.tcen_auth.verify_code_page, name='verify_code_page'),
+    path('verify/', views.VerifyCodePage.as_view(), name='verify_code_page'),
+    path('delete/', views.DeleteAccount.as_view(), name='delete_account'),
     # path('', views.home, name='home'),
 ]
 

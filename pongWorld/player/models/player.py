@@ -40,6 +40,8 @@ class Player(AbstractBaseUser, TimestampBaseModel, PermissionsMixin):
     total_score = models.PositiveIntegerField(default=1000)
     online_count = models.PositiveIntegerField(default=0)
     last_login_time = models.DateTimeField()
+    two_factor_auth_enabled = models.BooleanField(default=False)
+    auth_code = models.CharField(max_length=10, blank=True, null=True)
 
     objects = PlayerManager()
 
