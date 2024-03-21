@@ -152,6 +152,10 @@ class GameConsumer:
                 player2_ranking = self.get_ranking(self.player2.total_score)
 
                 # new rating 저장
+                if player1_new_rating < 0:
+                    player1_new_rating = 0
+                elif player2_new_rating < 0:
+                    player2_new_rating = 0
                 setattr(self.player1, 'total_score', player1_new_rating)
                 setattr(self.player2, 'total_score', player2_new_rating)
                 await database_sync_to_async(self.player1.save)()
