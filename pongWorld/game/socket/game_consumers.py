@@ -15,7 +15,7 @@ import math
 class GameConsumer:
     def __init__(self, consumer_instance):
         self.channel_layer = consumer_instance.channel_layer
-        self.ball_position = [0, random.randint(-100, 100)]
+        self.ball_position = [0, 0]
         self.player1_paddle_position = [-WALL_WIDTH_HALF, 0]
         self.player2_paddle_position = [WALL_WIDTH_HALF, 0]
         self.top_wall_y = WALL_HEIGHT_HALF
@@ -409,7 +409,8 @@ class TournamentGame(GameConsumer):
 
     async def calculate_tournament_ball_state(self):
 
-        if self.ball_position == [0, 0]:
+        if self.init_ball_position == True:
+            self.init_ball_position = False
             await asyncio.sleep(2)
 
         # 공의 위치 업데이트
@@ -419,6 +420,7 @@ class TournamentGame(GameConsumer):
         # 상단 및 하단 벽과의 충돌 처리
         if self.ball_position[1] - BALL_RADIUS < -WALL_HEIGHT_HALF or self.ball_position[1] + BALL_RADIUS > WALL_HEIGHT_HALF:
             self.ball_dy *= -1  # y축 방향 반전
+            self.add_ball_speed *= -1
 
         # 패들과의 충돌 처리(x축 기준으로 동일한 위치이면서 y축기준으로 높이의 범위안에 들어오면 충돌로 간주)
         
@@ -426,11 +428,28 @@ class TournamentGame(GameConsumer):
         if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF + PADDLE_WIDTH_HALF and \
         -PADDLE_HEIGHT_HALF < self.ball_position[1] - self.player1_paddle_position[1] < PADDLE_HEIGHT_HALF:
             self.ball_dx = abs(self.ball_dx)  # x축 방향 반전
+            
+            if self.slow_ball_speed == True:    # 처음에 느렸던 공 속도 원래대로
+                self.ball_dx *= 2
+                self.ball_dy *= 2
+                self.slow_ball_speed = False
+            else: # 속도 증가
+                self.ball_dx += abs(self.add_ball_speed)
+                self.ball_dy += self.add_ball_speed
+
 
         ## 오른쪽 패들 충돌
         if self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF - PADDLE_WIDTH_HALF and \
         -PADDLE_HEIGHT_HALF < self.ball_position[1] - self.player2_paddle_position[1] < PADDLE_HEIGHT_HALF:
             self.ball_dx = -abs(self.ball_dx)  # x축 방향 반전
+
+            if self.slow_ball_speed == True:    # 처음에 느렸던 공 속도 원래대로
+                self.ball_dx *= 2
+                self.ball_dy *= 2
+                self.slow_ball_speed = False
+            else: # 속도 증가
+                self.ball_dx -= abs(self.add_ball_speed)
+                self.ball_dy += self.add_ball_speed
 
         # 좌우 벽과의 충돌 처리
         if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF or \
@@ -447,9 +466,14 @@ class TournamentGame(GameConsumer):
                 message_type = "PLAYER1_GET_SCORE"
                 player_id = self.player1.id
             ### 공 위치 초기화
-            self.ball_position = [0, 0]
-            self.ball_dx = -self.ball_dx  # 공의 방향을 반대로 변경
-            self.ball_dy *= random.choice([-1, 1])
+            self.ball_position = [0, random.randint(-100, 100)]
+            self.init_ball_position = True
+            if (self.player1_score + self.player2_score) % 2 == 0:
+                self.ball_dx = self.speed
+            else:
+                self.ball_dx = -self.speed
+            self.ball_dy = self.speed  * random.choice([-1, 1])
+            self.slow_ball_speed = True 
 
             # 게임 스코어 전송
             await self.channel_layer.group_send(
