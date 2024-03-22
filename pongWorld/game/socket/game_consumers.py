@@ -127,30 +127,12 @@ class GameConsumer:
                     setattr(self.game, 'winner', self.player2)
                     player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
                 winner = self.game.winner
-                # 게임 결과 전송
-                await self.channel_layer.group_send(
-                    self.game_group_name,
-                    {
-                        'type': 'game_info',
-                        'message_type': 'GAME_OVER',
-                        'data': self.get_game_result(winner)
-                    }
-                )
                 await database_sync_to_async(self.game.save)()
-
-                # new rating 반영
-                await self.channel_layer.group_send(
-                    self.game_group_name,
-                    {
-                        'type': 'game_info',
-                        'message_type': 'UPDATE_PLAYERS_NEW_RATING',
-                        'data': self.udpate_players_new_rating(player1_new_rating, player2_new_rating)
-                    }
-                )
+                
                 # 점수 저장 전 현재 랭킹 가져오기
                 player1_ranking = self.get_ranking(self.player1.total_score)
                 player2_ranking = self.get_ranking(self.player2.total_score)
-
+                
                 # new rating 저장
                 if player1_new_rating < 0:
                     player1_new_rating = 0
@@ -164,14 +146,49 @@ class GameConsumer:
                 # new ranking 반영
                 player1_new_ranking = self.get_ranking(self.player1.total_score)
                 player2_new_ranking = self.get_ranking(self.player2.total_score)
+                
+                # 게임 결과 전송
                 await self.channel_layer.group_send(
                     self.game_group_name,
                     {
                         'type': 'game_info',
-                        'message_type': 'UPDATE_PLAYERS_NEW_RANKING',
-                        'data': self.udpate_players_new_ranking(player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
+                        'message_type': 'GAME_OVER',
+                        'data': self.get_game_result(winner, player1_new_rating, player2_new_rating, 
+                                                     player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
                     }
                 )
+
+                # # new rating 반영
+                # await self.channel_layer.group_send(
+                #     self.game_group_name,
+                #     {
+                #         'type': 'game_info',
+                #         'message_type': 'UPDATE_PLAYERS_NEW_RATING',
+                #         'data': self.udpate_players_new_rating(player1_new_rating, player2_new_rating)
+                #     }
+                # )
+
+                # # new rating 저장
+                # if player1_new_rating < 0:
+                #     player1_new_rating = 0
+                # elif player2_new_rating < 0:
+                #     player2_new_rating = 0
+                # setattr(self.player1, 'total_score', player1_new_rating)
+                # setattr(self.player2, 'total_score', player2_new_rating)
+                # await database_sync_to_async(self.player1.save)()
+                # await database_sync_to_async(self.player2.save)()
+
+                # # new ranking 반영
+                # player1_new_ranking = self.get_ranking(self.player1.total_score)
+                # player2_new_ranking = self.get_ranking(self.player2.total_score)
+                # await self.channel_layer.group_send(
+                #     self.game_group_name,
+                #     {
+                #         'type': 'game_info',
+                #         'message_type': 'UPDATE_PLAYERS_NEW_RANKING',
+                #         'data': self.udpate_players_new_ranking(player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
+                #     }
+                # )
 
                 return False 
         
@@ -291,41 +308,66 @@ class GameConsumer:
             }
         return score
 
-    def get_game_result(self, winner):
+    def get_game_result(self, winner, player1_new_rating, player2_new_rating, 
+                        player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking):
         game_result = {
             'winner': PlayerSerializer(winner).data,
+            'new_rating' : {
+                'player1': {
+                    'original': self.player1.total_score,
+                    'new': player1_new_rating,
+                    'difference': player1_new_rating - self.player1.total_score,
+                },
+                'player2': {
+                    'original': self.player2.total_score,
+                    'new': player2_new_rating,
+                    'difference': player2_new_rating - self.player2.total_score,
+                },
+            },
+            'new_ranking' : {
+                'player1': {
+                    'original': player1_ranking,
+                    'new': player1_new_ranking,
+                    'difference': player1_new_ranking - player1_ranking
+                },
+                'player2': {
+                    'original': player2_ranking,
+                    'new': player2_new_ranking,
+                    'difference': player2_new_ranking - player2_ranking
+                },
+            }
         }
         return game_result
 
-    def udpate_players_new_rating(self, player1_new_rating, player2_new_rating):
-        new_rating = {
-            'player1': {
-                'original': self.player1.total_score,
-                'new': player1_new_rating,
-                'difference': player1_new_rating - self.player1.total_score,
-            },
-            'player2': {
-                'original': self.player2.total_score,
-                'new': player2_new_rating,
-                'difference': player2_new_rating - self.player2.total_score,
-            },
-        }
-        return new_rating
+    # def udpate_players_new_rating(self, player1_new_rating, player2_new_rating):
+    #     new_rating = {
+    #         'player1': {
+    #             'original': self.player1.total_score,
+    #             'new': player1_new_rating,
+    #             'difference': player1_new_rating - self.player1.total_score,
+    #         },
+    #         'player2': {
+    #             'original': self.player2.total_score,
+    #             'new': player2_new_rating,
+    #             'difference': player2_new_rating - self.player2.total_score,
+    #         },
+    #     }
+    #     return new_rating
 
-    def udpate_players_new_ranking(self, player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking):
-        new_ranking = {
-            'player1': {
-                'original': player1_ranking,
-                'new': player1_new_ranking,
-                'difference': player1_new_ranking - player1_ranking
-            },
-            'player2': {
-                'original': player2_ranking,
-                'new': player2_new_ranking,
-                'difference': player2_new_ranking - player2_ranking
-            },
-        }
-        return new_ranking
+    # def udpate_players_new_ranking(self, player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking):
+    #     new_ranking = {
+    #         'player1': {
+    #             'original': player1_ranking,
+    #             'new': player1_new_ranking,
+    #             'difference': player1_new_ranking - player1_ranking
+    #         },
+    #         'player2': {
+    #             'original': player2_ranking,
+    #             'new': player2_new_ranking,
+    #             'difference': player2_new_ranking - player2_ranking
+    #         },
+    #     }
+    #     return new_ranking
 
     def get_paddle_position(self, player_id):
         if player_id == self.player1.id:
