@@ -138,14 +138,10 @@ class GameConsumer:
                     player1_new_rating = 0
                 elif player2_new_rating < 0:
                     player2_new_rating = 0
-                setattr(self.player1, 'total_score', player1_new_rating)
-                setattr(self.player2, 'total_score', player2_new_rating)
-                await database_sync_to_async(self.player1.save)()
-                await database_sync_to_async(self.player2.save)()
-
+                    
                 # new ranking 반영
-                player1_new_ranking = self.get_ranking(self.player1.total_score)
-                player2_new_ranking = self.get_ranking(self.player2.total_score)
+                player1_new_ranking = self.get_ranking(player1_new_rating)
+                player2_new_ranking = self.get_ranking(player2_new_rating)
                 
                 # 게임 결과 전송
                 await self.channel_layer.group_send(
@@ -157,38 +153,11 @@ class GameConsumer:
                                                      player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
                     }
                 )
-
-                # # new rating 반영
-                # await self.channel_layer.group_send(
-                #     self.game_group_name,
-                #     {
-                #         'type': 'game_info',
-                #         'message_type': 'UPDATE_PLAYERS_NEW_RATING',
-                #         'data': self.udpate_players_new_rating(player1_new_rating, player2_new_rating)
-                #     }
-                # )
-
-                # # new rating 저장
-                # if player1_new_rating < 0:
-                #     player1_new_rating = 0
-                # elif player2_new_rating < 0:
-                #     player2_new_rating = 0
-                # setattr(self.player1, 'total_score', player1_new_rating)
-                # setattr(self.player2, 'total_score', player2_new_rating)
-                # await database_sync_to_async(self.player1.save)()
-                # await database_sync_to_async(self.player2.save)()
-
-                # # new ranking 반영
-                # player1_new_ranking = self.get_ranking(self.player1.total_score)
-                # player2_new_ranking = self.get_ranking(self.player2.total_score)
-                # await self.channel_layer.group_send(
-                #     self.game_group_name,
-                #     {
-                #         'type': 'game_info',
-                #         'message_type': 'UPDATE_PLAYERS_NEW_RANKING',
-                #         'data': self.udpate_players_new_ranking(player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
-                #     }
-                # )
+                
+                setattr(self.player1, 'total_score', player1_new_rating)
+                setattr(self.player2, 'total_score', player2_new_rating)
+                await database_sync_to_async(self.player1.save)()
+                await database_sync_to_async(self.player2.save)()
 
                 return False 
         
@@ -339,36 +308,6 @@ class GameConsumer:
         }
         return game_result
 
-    # def udpate_players_new_rating(self, player1_new_rating, player2_new_rating):
-    #     new_rating = {
-    #         'player1': {
-    #             'original': self.player1.total_score,
-    #             'new': player1_new_rating,
-    #             'difference': player1_new_rating - self.player1.total_score,
-    #         },
-    #         'player2': {
-    #             'original': self.player2.total_score,
-    #             'new': player2_new_rating,
-    #             'difference': player2_new_rating - self.player2.total_score,
-    #         },
-    #     }
-    #     return new_rating
-
-    # def udpate_players_new_ranking(self, player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking):
-    #     new_ranking = {
-    #         'player1': {
-    #             'original': player1_ranking,
-    #             'new': player1_new_ranking,
-    #             'difference': player1_new_ranking - player1_ranking
-    #         },
-    #         'player2': {
-    #             'original': player2_ranking,
-    #             'new': player2_new_ranking,
-    #             'difference': player2_new_ranking - player2_ranking
-    #         },
-    #     }
-    #     return new_ranking
-
     def get_paddle_position(self, player_id):
         if player_id == self.player1.id:
             paddle_position = {
@@ -388,7 +327,6 @@ class TournamentGame(GameConsumer):
         self.player1 = player1
         self.player2 = player2
         self.winner = None
-        self.is_finish = False
 
     # 준결승
     async def start_tournament_semi_final_loop(self, consumer_instance):
@@ -537,26 +475,6 @@ class TournamentGame(GameConsumer):
                 self.winner = self.player1
             elif self.player2_score == SCORE_LIMIT:
                 self.winner = self.player2
-            
-            self.is_finish = True
-
-            # 결승 종료
-            if self.game_group_name == f'tournament_{self.tournament.id}_final':
-                message_type = 'END_OF_FINAL'
-            elif self.game_group_name == f'tournament_{self.tournament.id}_A':
-                message_type = 'END_OF_SEMI_FINAL_A'
-            elif self.game_group_name == f'tournament_{self.tournament.id}_B':
-                message_type = 'END_OF_SEMI_FINAL_B'
-
-            # 게임 결과 전송
-            await self.channel_layer.group_send(
-                self.tournament_group_name,
-                {
-                    'type': 'game_info',
-                    'message_type': message_type,
-                    'data': self.get_game_result(self.winner)
-                }
-            )
 
             # 결승전 끝났을 때
             if self.game_group_name == f'tournament_{self.tournament.id}_final':
@@ -568,50 +486,66 @@ class TournamentGame(GameConsumer):
 
                 # new rating 반영
                 winner_new_rating = self.winner.total_score + 420
+                
+                # new ranking 반영
+                winner_new_ranking = self.get_ranking(winner_new_rating)
+                
                 await self.channel_layer.group_send(
                     self.game_group_name,
                     {
                         'type': 'game_info',
-                        'message_type': 'UPDATE_WINNER_NEW_RATING',
-                        'data': self.udpate_winner_new_rating(winner_new_rating)
+                        'message_type': 'END_OF_FINAL',
+                        'data': self.get_final_result(self.winner, winner_new_rating, winner_ranking, winner_new_ranking)
                     }
                 )
-
+                
                 # new rating 저장
                 setattr(self.winner, 'total_score', winner_new_rating)
                 await database_sync_to_async(self.winner.save)()
 
-                # new ranking 반영
-                winner_new_ranking = self.get_ranking(self.winner.total_score)
+            # 준결승 종료
+            else:
+                if self.game_group_name == f'tournament_{self.tournament.id}_A':
+                    message_type = 'END_OF_SEMI_FINAL_A'
+                elif self.game_group_name == f'tournament_{self.tournament.id}_B':
+                    message_type = 'END_OF_SEMI_FINAL_B'
+
+                # 게임 결과 전송
                 await self.channel_layer.group_send(
-                    self.game_group_name,
+                    self.tournament_group_name,
                     {
                         'type': 'game_info',
-                        'message_type': 'UPDATE_WINNER_NEW_RANKING',
-                        'data': self.udpate_winner_new_ranking(winner_ranking, winner_new_ranking)
+                        'message_type': message_type,
+                        'data': self.get_semi_final_result(self.winner)
                     }
                 )
 
             return False
         
         return True
-
-    def udpate_winner_new_rating(self, winner_new_rating):
-        new_rating = {
-            'winner': {
-                'original': self.winner.total_score,
-                'new': winner_new_rating,
-                'difference': 1000,
+    
+    def get_semi_final_result(self, winner):
+        game_result = {
+            'winner': PlayerSerializer(winner).data,
+        }
+        return game_result
+    
+    def get_final_result(self, winner, winner_new_rating, winner_ranking, winner_new_ranking):
+        game_result = {
+            'winner': PlayerSerializer(winner).data,
+            'new_rating' : {
+                'winner': {
+                    'original': self.winner.total_score,
+                    'new': winner_new_rating,
+                    'difference': 420,
+                }
+            },
+            'new_ranking' : {
+                'winner': {
+                    'original': winner_ranking,
+                    'new': winner_new_ranking,
+                    'difference': winner_new_ranking - winner_ranking
+                }
             }
         }
-        return new_rating
-
-    def udpate_winner_new_ranking(self, winner_ranking, winner_new_ranking):
-        new_ranking = {
-            'winner': {
-                'original': winner_ranking,
-                'new': winner_new_ranking,
-                'difference': winner_new_ranking - winner_ranking
-            }
-        }
-        return new_ranking
+        return game_result
