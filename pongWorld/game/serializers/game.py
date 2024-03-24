@@ -94,9 +94,9 @@ class GameSerializer(serializers.ModelSerializer):
 
         if user_id is None:
             return None
-        if obj.player1.id == user_id:
+        if obj.player1 and obj.player1.id == user_id:
             return 'player1'
-        elif obj.player2.id == user_id:
+        elif obj.player2 and obj.player2.id == user_id:
             return 'player2'
         raise ValueError("Invalid user_id")
         
@@ -105,7 +105,7 @@ class GameSerializer(serializers.ModelSerializer):
 
         if user_id is None:
             return None
-        if user_id == obj.winner.id:
+        if obj.winner and user_id == obj.winner.id:
             return 1 # 승리
         else:
             return 0    # 패배

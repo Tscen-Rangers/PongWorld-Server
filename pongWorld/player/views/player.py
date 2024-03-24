@@ -110,7 +110,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         if game_record_type == 0: # total
             games = (Game.objects.filter(player1=user) | Game.objects.filter(player2=user)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                games = games.order_by('-created_at')[:3]
+                games = games.order_by('-created_at')[:20]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
@@ -118,7 +118,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         elif game_record_type == 1: # with me
             games = (Game.objects.filter(player1=me, player2=user) | Game.objects.filter(player1=user, player2=me)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                games = games.order_by('-created_at')[:3]
+                games = games.order_by('-created_at')[:20]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
