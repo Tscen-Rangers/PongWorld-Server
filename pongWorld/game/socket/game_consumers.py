@@ -121,10 +121,12 @@ class GameConsumer:
                 # player1이 승리했을 때
                 if self.player1_score == SCORE_LIMIT:
                     setattr(self.game, 'winner', self.player1)
+                    setattr(self.player1, 'wins', self.player1.wins + 1)
                     player1_new_rating, player2_new_rating = self.calculate_new_ratings(self.player1.total_score, self.player2.total_score)
                 # player2가 승리했을 때
                 elif self.player2_score == SCORE_LIMIT:
                     setattr(self.game, 'winner', self.player2)
+                    setattr(self.player2, 'wins', self.player2.wins + 1)
                     player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
                 winner = self.game.winner
                 await database_sync_to_async(self.game.save)()
@@ -156,6 +158,8 @@ class GameConsumer:
                 
                 setattr(self.player1, 'total_score', player1_new_rating)
                 setattr(self.player2, 'total_score', player2_new_rating)
+                setattr(self.player1, 'matches', self.player1.matches + 1)
+                setattr(self.player2, 'matches', self.player2.matches + 1)
                 await database_sync_to_async(self.player1.save)()
                 await database_sync_to_async(self.player2.save)()
 
