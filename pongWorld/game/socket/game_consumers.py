@@ -510,17 +510,29 @@ class TournamentGame(GameConsumer):
             # 준결승 종료
             else:
                 if self.game_group_name == f'tournament_{self.tournament.id}_A':
-                    message_type = 'END_OF_SEMI_FINAL_A'
+                    winner_message_type = 'GAME_RESULT_A'
+                    end_game_message_type = 'END_OF_SEMI_FINAL_A'
                 elif self.game_group_name == f'tournament_{self.tournament.id}_B':
-                    message_type = 'END_OF_SEMI_FINAL_B'
+                    winner_message_type = 'GAME_RESULT_B'
+                    end_game_message_type = 'END_OF_SEMI_FINAL_B'
+
+                # 게임 결과 전송
+                await self.channel_layer.group_send(
+                    self.game_group_name,
+                    {
+                        'type': 'game_info',
+                        'message_type': winner_message_type,
+                        'data': self.get_semi_final_result(self.winner)
+                    }
+                )
 
                 # 게임 결과 전송
                 await self.channel_layer.group_send(
                     self.tournament_group_name,
                     {
-                        'type': 'game_info',
-                        'message_type': message_type,
-                        'data': self.get_semi_final_result(self.winner)
+                        'type': 'game_message',
+                        'message_type': end_game_message_type,
+                        'message': "The semi-final match is over."
                     }
                 )
 
