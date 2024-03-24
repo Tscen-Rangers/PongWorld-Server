@@ -130,8 +130,8 @@ class GameConsumer:
                 await database_sync_to_async(self.game.save)()
                 
                 # 점수 저장 전 현재 랭킹 가져오기
-                player1_ranking = self.get_ranking(self.player1.total_score)
-                player2_ranking = self.get_ranking(self.player2.total_score)
+                player1_ranking = self.get_ranking(self.player1, self.player1.total_score)
+                player2_ranking = self.get_ranking(self.player2, self.player2.total_score)
                 
                 # new rating 저장
                 if player1_new_rating < 0:
@@ -140,8 +140,8 @@ class GameConsumer:
                     player2_new_rating = 0
                     
                 # new ranking 반영
-                player1_new_ranking = self.get_ranking(player1_new_rating)
-                player2_new_ranking = self.get_ranking(player2_new_rating)
+                player1_new_ranking = self.get_ranking(self.player1, player1_new_rating)
+                player2_new_ranking = self.get_ranking(self.player2, player2_new_rating)
                 
                 # 게임 결과 전송
                 await self.channel_layer.group_send(
@@ -175,10 +175,10 @@ class GameConsumer:
     def expected_result(self, player_rating, opponent_rating):
         return 1 / (1 + math.pow(10, (opponent_rating - player_rating) / 400))
 
-    def get_ranking(self, player_score):
+    def get_ranking(self, player, player_score):
         # 특정 플레이어보다 높은 점수를 가진 플레이어 수를 계산합니다.
-        higher_rank_count = Player.objects.filter(total_score__gt=player_score).count()
-
+        higher_rank_count = Player.objects.filter(total_score__gt=player_score, is_superuser=False).exclude(id=player.id).count()
+        
         # 특정 플레이어의 순위를 계산합니다.
         player_rank = higher_rank_count + 1
 
@@ -482,13 +482,13 @@ class TournamentGame(GameConsumer):
                 setattr(self.tournament, 'winner', self.winner)
                 await database_sync_to_async(self.tournament.save)()
 
-                winner_ranking = self.get_ranking(self.winner.total_score)
+                winner_ranking = self.get_ranking(self.winner, self.winner.total_score)
 
                 # new rating 반영
                 winner_new_rating = self.winner.total_score + 420
                 
                 # new ranking 반영
-                winner_new_ranking = self.get_ranking(winner_new_rating)
+                winner_new_ranking = self.get_ranking(self.winner, winner_new_rating)
                 
                 await self.channel_layer.group_send(
                     self.game_group_name,
