@@ -44,23 +44,6 @@ class PlayerSettingView(viewsets.ModelViewSet):
         except Player.DoesNotExist:
             return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
             
-    def withdraw(self, request):
-        try:
-            user_id = request.user.id
-            user = Player.objects.get(id=user_id)
-
-            # delete user profile image from media
-            profile_img_path = str(user.profile_img)
-            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
-            if full_profile_img_path and default_storage.exists(full_profile_img_path):
-                default_storage.delete(full_profile_img_path)
-
-            user.delete()
-
-            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_204_NO_CONTENT)
-        except Player.DoesNotExist:
-            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
-        
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'
