@@ -279,6 +279,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             player2 = self.tournament.player4
         await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
         self.speed = 1
+        await asyncio.sleep(1)
         await self.start_semi_final(self.tournament_semi_group_name, player1, player2)
 
     async def start_semi_final(self, tournament_group, player1, player2):
@@ -286,6 +287,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             TournamentMatchConsumer.rooms[tournament_group] = TournamentGame(self, player1, player2)
         else:
             return
+        
         TournamentMatchConsumer.rooms[tournament_group].winner = asyncio.create_task(TournamentMatchConsumer.rooms[tournament_group].start_tournament_semi_final_loop(self))
         
     async def final(self, data):
