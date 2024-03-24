@@ -45,6 +45,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
             asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].change_paddle_position(self.player.id, data['y_coordinate']))  # 백그라운드에서 실행
 
     async def end_game(self, data):
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
         if self.game.id in RandomMatchConsumer.rooms:
             del RandomMatchConsumer.rooms[self.game.id]
         await self.close()
@@ -127,6 +128,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         ))
 
     async def disconnect(self, close_code):
+        await database_sync_to_async(self.game.refresh_from_db)()
         if self.player == self.game.player1 and self.game.status == 0:
             await database_sync_to_async(self.game.delete)()
 
