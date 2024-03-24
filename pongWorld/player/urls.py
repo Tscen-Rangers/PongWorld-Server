@@ -8,7 +8,6 @@ urlpatterns = [
     path('online/<str:name>/', views.OnlinePlayerSearchView.as_view()),
     path('setting/', views.PlayerSettingView.as_view({'get': 'get_user_info'}), name="get_user_info"),
     path('setting/<int:pk>/', views.PlayerSettingView.as_view({'patch': 'partial_update'}), name="set_user_info"),
-    path('withdraw/', views.PlayerSettingView.as_view({'delete': 'withdraw'}), name="user_withdraw"),
     path('search/', views.SearchUserView.as_view({'get': 'get_all_users'}), name="get_all_users"),
     path('search/<str:name>/', views.SearchUserView.as_view({'get': 'get_users'}), name="get_users"),
     path('profile/', views.PlayerProfileView.as_view({'get': 'get_my_profile'}), name="my_profile"),
