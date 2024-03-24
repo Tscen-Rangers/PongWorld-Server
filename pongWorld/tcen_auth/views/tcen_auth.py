@@ -18,6 +18,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from drf_spectacular.utils import extend_schema
+from django.http import JsonResponse
+import json
 
 from player.models import Player
 from ..serializers import (
@@ -214,25 +216,67 @@ def generate_auth_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
 
-def verify_code_page(request):
-    if request.method == 'POST':
-        # 사용자 입력 인증 코드
-        user_input_code = request.POST.get('code')
-        # 세션에 저장된 인증 코드
-        expected_code = request.session.get('auth_code')
+
+#@method_decorator(csrf_exempt, name='dispatch')
+class VerifyCodePage(generics.GenericAPIView):
+    @extend_schema(
+        methods=['GET', 'POST'],  # 이 뷰에서 지원하는 메소드
+        description='인증 코드를 검증합니다.',
+        responses={200: None}  # 응답 스키마 예시
+    )
+    def get(self, request, *args, **kwargs):
+        # 사용자 인증 확인
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+
+        user = request.user
+        user_email = user.email
+        auth_code = generate_auth_code()
+        
+        user.auth_code = auth_code
+        user.save()
+    
+        send_email(user_email, "Your authentication code", f"Your authentication code is: {auth_code}")
+        return JsonResponse({'message': 'Authentication code sent'})
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        
+         # 현재 인증된 사용자를 user 변수에 할당
+        user = request.user
+
+        # JSON 데이터 파싱
+        data = json.loads(request.body)
+        user_input_code = data.get('code')
+        expected_code = user.auth_code
+       
 
         if user_input_code == expected_code:
-            # 인증 코드가 일치하는 경우
-            del request.session['auth_code']  # 세션에서 인증 코드 삭제
-            # 인증 성공 처리, 예를 들어 사용자를 홈페이지로 리다이렉션
-            return redirect('home')
+            user.two_factor_auth_enabled = True
+            user.auth_code = None  # 인증 코드 사용 후 초기화
+            user.save()
+            return JsonResponse({'message': 'Authentication successful'})
         else:
-            # 인증 코드가 일치하지 않는 경우
-            # 에러 메시지와 함께 다시 인증 코드 입력 페이지를 렌더링
-            return render(request, 'tcen_auth/verify_code.html', {'error': 'Invalid authentication code. Please try again.'})
-    else:
-        # GET 요청인 경우, 인증 코드 입력 폼을 렌더링
-        return render(request, 'tcen_auth/verify_code.html')
+            return JsonResponse({'error': 'Invalid authentication code'}, status=400)
+        
+#@method_decorator(csrf_exempt, name='dispatch')
+class DeleteAccount(generics.GenericAPIView):
+    @extend_schema(
+        methods=['DELETE'],  # 이 뷰에서 지원하는 메소드
+        description='계정을 삭제합니다. 이중 인증이 활성화된 계정만 삭제가능',
+        responses={200: 'Account successfully deleted'}
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+
+        if user.two_factor_auth_enabled:
+            user.delete()
+            return Response({'message': 'Account successfully deleted'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Two-factor authentication is not enabled. Account deletion is not allowed.'}, status=status.HTTP_403_FORBIDDEN)
+
 
 
 
