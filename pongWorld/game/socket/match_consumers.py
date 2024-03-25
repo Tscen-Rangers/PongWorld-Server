@@ -292,10 +292,6 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
         
     async def final(self, data):
         try:
-            if  TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].is_finish == False or \
-                TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].is_finish == False:
-                raise Exception('Please wait a moment. The game is in progress.')
-
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
                 self.tournament_final_group_name = f'tournament_{self.tournament.id}_final'
                 await self.channel_layer.group_add(self.tournament_final_group_name, self.channel_name)
