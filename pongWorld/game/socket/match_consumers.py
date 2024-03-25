@@ -299,6 +299,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 player1 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].winner
                 player2 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].winner
 
+                await asyncio.sleep(1)
                 # 준결승 A, B팀 모두 끝난 후 결승 시작
                 if self.tournament_final_group_name not in TournamentMatchConsumer.rooms and player1 and player2:
                     self.speed = 2
