@@ -429,6 +429,7 @@ class GameMixin:
 
     async def quit_competition(self, text_data_json):
         try:
+            await database_sync_to_async(self.game.refresh_from_db)()
             if self.player == self.game.player1 and self.game.status == 0:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
