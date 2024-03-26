@@ -158,7 +158,7 @@ class SearchFriendsView(viewsets.ModelViewSet):
     def get_all_friends(self, request):
         me = request.user  # 현재 요청을 보낸 사용자
 
-        friends = Friend.objects.filter(are_we_friend=True).annotate(
+        friends = Friend.objects.filter((Q(follower=me) | Q(followed=me)), are_we_friend=True).annotate(
             other_person_nickname=Case(
                 When(follower=me, then=F('followed__nickname')),
                 When(followed=me, then=F('follower__nickname')),
