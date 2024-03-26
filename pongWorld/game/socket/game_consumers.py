@@ -65,6 +65,15 @@ class GameConsumer:
                 self.ball_dx += abs(self.add_ball_speed)
                 self.ball_dy += self.add_ball_speed
 
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message_type': 'HIT_THE_BALL',
+                    'message': "Player1 hit the ball"
+                }
+            )
+
 
         ## 오른쪽 패들 충돌
         if self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF - PADDLE_WIDTH_HALF and \
@@ -78,6 +87,15 @@ class GameConsumer:
             else: # 속도 증가
                 self.ball_dx -= abs(self.add_ball_speed)
                 self.ball_dy += self.add_ball_speed
+
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message_type': 'HIT_THE_BALL',
+                    'message': "Player2 hit the ball"
+                }
+            )
 
         # 좌우 벽과의 충돌 처리
         if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF or \
@@ -425,6 +443,15 @@ class TournamentGame(GameConsumer):
                 self.ball_dx += abs(self.add_ball_speed)
                 self.ball_dy += self.add_ball_speed
 
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message_type': 'HIT_THE_BALL',
+                    'message': "Player1 hit the ball"
+                }
+            )
+
 
         ## 오른쪽 패들 충돌
         if self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF - PADDLE_WIDTH_HALF and \
@@ -438,6 +465,15 @@ class TournamentGame(GameConsumer):
             else: # 속도 증가
                 self.ball_dx -= abs(self.add_ball_speed)
                 self.ball_dy += self.add_ball_speed
+
+            await self.channel_layer.group_send(
+                self.game_group_name,
+                {
+                    'type': 'game_message',
+                    'message_type': 'HIT_THE_BALL',
+                    'message': "Player2 hit the ball"
+                }
+            )
 
         # 좌우 벽과의 충돌 처리
         if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF or \
