@@ -21,6 +21,8 @@ from drf_spectacular.utils import extend_schema
 from django.http import JsonResponse
 from django.contrib.auth import logout
 import json
+import os
+from django.core.files.storage import default_storage
 
 from player.models import Player
 from ..serializers import (
@@ -289,6 +291,12 @@ class DeleteAccountView(generics.GenericAPIView):
         user = request.user
 
         if user.two_factor_auth_enabled:
+            # delete user profile image from media
+            profile_img_path = str(user.profile_img)
+            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
+            if full_profile_img_path and default_storage.exists(full_profile_img_path):
+                default_storage.delete(full_profile_img_path)
+
             user.delete()
             return Response({'message': 'Account successfully deleted'}, status=status.HTTP_200_OK)
         else:
@@ -298,9 +306,6 @@ class LogoutView(generics.GenericAPIView):
     def post(self, request, *args, **kwargs):
         logout(request)
         return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
-
-
-
 
 # def oauth2callback(request):# 파라미터는 HttpRequest 객체 Django가 자동으로 뷰 함수에 전달됨
 #     # 인증 코드 받기

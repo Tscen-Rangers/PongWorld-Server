@@ -19,4 +19,4 @@ class GameView(viewsets.ModelViewSet):
             game_serializer = GameSerializer(games, many=True)
             games_data = game_serializer.data
             return Response({'ranking': serializer.data, 'games': games_data}, status=status.HTTP_200_OK)
-        return Response({'player': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)
+        return Response({'ranking': serializer.data, 'games': 'No game'}, status=status.HTTP_200_OK)

@@ -1,6 +1,7 @@
 *.pyc
 
 secrets.json
+.env
 
 .idea
 db.sqlite3 

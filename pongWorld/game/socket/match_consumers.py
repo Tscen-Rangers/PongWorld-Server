@@ -45,6 +45,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
             asyncio.create_task(RandomMatchConsumer.rooms[self.game.id].change_paddle_position(self.player.id, data['y_coordinate']))  # 백그라운드에서 실행
 
     async def end_game(self, data):
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
         if self.game.id in RandomMatchConsumer.rooms:
             del RandomMatchConsumer.rooms[self.game.id]
         await self.close()
@@ -127,6 +128,7 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         ))
 
     async def disconnect(self, close_code):
+        await database_sync_to_async(self.game.refresh_from_db)()
         if self.player == self.game.player1 and self.game.status == 0:
             await database_sync_to_async(self.game.delete)()
 
@@ -277,6 +279,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             player2 = self.tournament.player4
         await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
         self.speed = 1
+        await asyncio.sleep(1)
         await self.start_semi_final(self.tournament_semi_group_name, player1, player2)
 
     async def start_semi_final(self, tournament_group, player1, player2):
@@ -284,14 +287,11 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             TournamentMatchConsumer.rooms[tournament_group] = TournamentGame(self, player1, player2)
         else:
             return
+        
         TournamentMatchConsumer.rooms[tournament_group].winner = asyncio.create_task(TournamentMatchConsumer.rooms[tournament_group].start_tournament_semi_final_loop(self))
         
     async def final(self, data):
         try:
-            if  TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].is_finish == False or \
-                TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].is_finish == False:
-                raise Exception('Please wait a moment. The game is in progress.')
-
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
                 self.tournament_final_group_name = f'tournament_{self.tournament.id}_final'
                 await self.channel_layer.group_add(self.tournament_final_group_name, self.channel_name)
@@ -299,6 +299,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 player1 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].winner
                 player2 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].winner
 
+                await asyncio.sleep(1)
                 # 준결승 A, B팀 모두 끝난 후 결승 시작
                 if self.tournament_final_group_name not in TournamentMatchConsumer.rooms and player1 and player2:
                     self.speed = 2
@@ -428,6 +429,7 @@ class GameMixin:
 
     async def quit_competition(self, text_data_json):
         try:
+            await database_sync_to_async(self.game.refresh_from_db)()
             if self.player == self.game.player1 and self.game.status == 0:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)

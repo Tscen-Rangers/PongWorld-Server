@@ -14,32 +14,23 @@ from pathlib import Path
 from datetime import timedelta
 import os
 import json
+import environ
 from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+env = environ.Env(DEBUG=(bool, False))
+environ.Env.read_env(
+    env_file=os.path.join(BASE_DIR, '.env')
+)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-secret_file = os.path.join(BASE_DIR, 'secrets.json')
 os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = 'true'
 
-with open(secret_file) as f:
-    secrets = json.loads(f.read())
-
-
-def get_secret(setting):
-    try:
-        return secrets[setting]
-    except KeyError:
-        error_msg = 'Set the {} environment variable'.format(setting)
-        raise ImproperlyConfigured(error_msg)
-
-
-SECRET_KEY = get_secret('SECRET_KEY')
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -131,11 +122,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'pong_world',
-        'USER': 'root',
-        'PASSWORD': 'password',
-        'HOST': 'localhost',
-        'PORT': '',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT'),
     }
 }
 
@@ -238,9 +229,9 @@ LOGGING = {
     },
 }
 
-T42_OAUTH2_CLIENT_ID = get_secret('T42_OAUTH2_CLIENT_ID')
-T42_OAUTH2_CLIENT_SECRET = get_secret('T42_OAUTH2_CLIENT_SECRET')
-T42_OAUTH2_REDIRECT_URI = get_secret('T42_OAUTH2_REDIRECT_URI')
+T42_OAUTH2_CLIENT_ID = env('T42_OAUTH2_CLIENT_ID')
+T42_OAUTH2_CLIENT_SECRET = env('T42_OAUTH2_CLIENT_SECRET')
+T42_OAUTH2_REDIRECT_URI = env('T42_OAUTH2_REDIRECT_URI')
 
 CORS_ORIGIN_WHITELIST = [
     'http://127.0.0.1:5500',
@@ -296,5 +287,5 @@ SIMPLE_JWT = {
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-MY_SITE_SCHEME = 'http'
-MY_SITE_DOMAIN = '127.0.0.1:8000'
+MY_SITE_SCHEME = env('MY_SITE_SCHEME')
+MY_SITE_DOMAIN = env('MY_SITE_DOMAIN')

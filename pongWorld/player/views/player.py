@@ -44,23 +44,6 @@ class PlayerSettingView(viewsets.ModelViewSet):
         except Player.DoesNotExist:
             return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
             
-    def withdraw(self, request):
-        try:
-            user_id = request.user.id
-            user = Player.objects.get(id=user_id)
-
-            # delete user profile image from media
-            profile_img_path = str(user.profile_img)
-            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
-            if full_profile_img_path and default_storage.exists(full_profile_img_path):
-                default_storage.delete(full_profile_img_path)
-
-            user.delete()
-
-            return Response({'message': 'User successfully withdrawn'}, status=status.HTTP_204_NO_CONTENT)
-        except Player.DoesNotExist:
-            return Response({'error': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
-        
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'
@@ -103,7 +86,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         serializer = PlayerSerializer(current_user, context={'request': request})
         games = (Game.objects.filter(player1=me) | Game.objects.filter(player2=me)) & Game.objects.filter(status=2)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
-            games = games.order_by('-created_at')[:3]
+            games = games.order_by('-created_at')[:20]
             game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': current_user.id})
             games_data = game_serializer.data
         else:
@@ -127,7 +110,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         if game_record_type == 0: # total
             games = (Game.objects.filter(player1=user) | Game.objects.filter(player2=user)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                games = games.order_by('-created_at')[:3]
+                games = games.order_by('-created_at')[:20]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
@@ -135,7 +118,7 @@ class PlayerProfileView(viewsets.ModelViewSet):
         elif game_record_type == 1: # with me
             games = (Game.objects.filter(player1=me, player2=user) | Game.objects.filter(player1=user, player2=me)) & Game.objects.filter(status=2)
             if games.exists():  # 게임이 하나도 없을 때 예외 처리
-                games = games.order_by('-created_at')[:3]
+                games = games.order_by('-created_at')[:20]
                 game_serializer = GameSerializer(games, many=True, context={'request': request, 'user_id': user_id})
                 games_data = game_serializer.data
             else:
