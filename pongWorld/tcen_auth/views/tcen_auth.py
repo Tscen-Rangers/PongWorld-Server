@@ -19,6 +19,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from drf_spectacular.utils import extend_schema
 from django.http import JsonResponse
+from django.contrib.auth import logout
 import json
 import os
 from django.core.files.storage import default_storage
@@ -115,7 +116,8 @@ class OAuthCallbackView(generics.GenericAPIView):
                 'id': user.id,
                 'nickname': user.nickname,
                 'profile_img': absolute_url,
-                'intro': user.intro
+                'intro': user.intro,
+                'two_factor_auth_enabled': user.two_factor_auth_enabled,
             }
         }
 
@@ -220,7 +222,7 @@ def generate_auth_code(length=6):
 
 
 #@method_decorator(csrf_exempt, name='dispatch')
-class VerifyCodePage(generics.GenericAPIView):
+class VerifyCodePageView(generics.GenericAPIView):
     @extend_schema(
         methods=['GET', 'POST'],  # 이 뷰에서 지원하는 메소드
         description='인증 코드를 검증합니다.',
@@ -231,22 +233,22 @@ class VerifyCodePage(generics.GenericAPIView):
         if not request.user.is_authenticated:
             return JsonResponse({'error': 'Unauthorized'}, status=401)
 
-
         user = request.user
         user_email = user.email
-        auth_code = generate_auth_code()
         
-        user.auth_code = auth_code
-        user.save()
-    
-        send_email(user_email, "Your authentication code", f"Your authentication code is: {auth_code}")
-        return JsonResponse({'message': 'Authentication code sent'})
+        
+        if  user.two_factor_auth_enabled == True:
+            auth_code = generate_auth_code()
+            user.auth_code = auth_code
+            user.save()
+            send_email(user_email, "Your authentication code", f"Your authentication code is: {auth_code}")
+            return JsonResponse({'message': 'Authentication code sent'})
 
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return JsonResponse({'error': 'Unauthorized'}, status=401)
         
-         # 현재 인증된 사용자를 user 변수에 할당
+        # 현재 인증된 사용자를 user 변수에 할당
         user = request.user
 
         # JSON 데이터 파싱
@@ -254,17 +256,32 @@ class VerifyCodePage(generics.GenericAPIView):
         user_input_code = data.get('code')
         expected_code = user.auth_code
        
-
         if user_input_code == expected_code:
-            user.two_factor_auth_enabled = True
             user.auth_code = None  # 인증 코드 사용 후 초기화
             user.save()
             return JsonResponse({'message': 'Authentication successful'})
         else:
             return JsonResponse({'error': 'Invalid authentication code'}, status=400)
         
+    def patch(self, request, *args, **kwargs):
+        # 사용자 인증 확인
+        if not request.user.is_authenticated:
+            return Response({'error': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        user = request.user
+        # 요청에서 이중 인증 활성화 상태를 가져옴
+        enable_two_factor = request.data.get('two_factor_auth_enabled', None)
+
+        if enable_two_factor is not None:
+            # 이중 인증 활성화/비활성화 상태 업데이트
+            user.two_factor_auth_enabled = enable_two_factor
+            user.save()
+            return Response({'message': 'Two-factor authentication status updated successfully'})
+
+        return Response({'error': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
+        
 #@method_decorator(csrf_exempt, name='dispatch')
-class DeleteAccount(generics.GenericAPIView):
+class DeleteAccountView(generics.GenericAPIView):
     @extend_schema(
         methods=['DELETE'],  # 이 뷰에서 지원하는 메소드
         description='계정을 삭제합니다. 이중 인증이 활성화된 계정만 삭제가능',
@@ -285,6 +302,10 @@ class DeleteAccount(generics.GenericAPIView):
         else:
             return Response({'error': 'Two-factor authentication is not enabled. Account deletion is not allowed.'}, status=status.HTTP_403_FORBIDDEN)
 
+class LogoutView(generics.GenericAPIView):
+    def post(self, request, *args, **kwargs):
+        logout(request)
+        return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
 
 # def oauth2callback(request):# 파라미터는 HttpRequest 객체 Django가 자동으로 뷰 함수에 전달됨
 #     # 인증 코드 받기
