@@ -11,11 +11,12 @@ from blocks.models import Block
 
 class ChatMixin:
     async def handle_public_chat(self, text_data_json):
-        user = self.user
         message = text_data_json.get('message')
         if message is None:
             await self.send_error_message("Message not provided")
             return
+
+        user = await self.get_user_latest()
 
         await self.channel_layer.group_send(
             self.online_users_group, {
@@ -45,6 +46,7 @@ class ChatMixin:
         }, ensure_ascii=False))
 
     async def handle_private_chat(self, text_data_json):
+
         status = text_data_json.get('status')
         if status is None:
             await self.send_error_message("Status not provided")
@@ -99,7 +101,7 @@ class ChatMixin:
             await self.send_error_message("Chatroom does not exist")
             return
 
-        user = self.user
+        user = await self.get_user_latest()
         new_message = await self.new_message(text_data_json)
         if new_message is None:
             await self.send_error_message("Message not provided")
@@ -122,7 +124,7 @@ class ChatMixin:
         if am_i_blocked:
             return
 
-        if self.chatroom.user1 == self.user:
+        if self.chatroom.user1 == user:
             unread_count = self.chatroom.msg_count_1
         else:
             unread_count = self.chatroom.msg_count_2
@@ -133,8 +135,8 @@ class ChatMixin:
             receiver_group, {
                 "type": "send.unread.count",
                 "chatroom_id": self.chatroom.id,
-                "sender_id": self.user.id,
-                "sender_nickname": self.user.nickname,
+                "sender_id": user.id,
+                "sender_nickname": user.nickname,
                 "unread_count": unread_count
             }
         )
@@ -259,4 +261,8 @@ class ChatMixin:
     @database_sync_to_async
     def refresh_chatroom(self):
         self.chatroom.refresh_from_db()
+
+    @database_sync_to_async
+    def get_user_latest(self):
+        return  Player.objects.get(id=self.user.id)
 
