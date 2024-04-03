@@ -5,8 +5,8 @@ from ..models import ChatRoom, Message
 
 class ChatRoomSerializer(serializers.ModelSerializer):
     unread_count = serializers.SerializerMethodField()
-    user1_nickname = serializers.CharField(source='user1.nickname', read_only=True)
-    user2_nickname = serializers.CharField(source='user2.nickname', read_only=True)
+    user1_nickname = serializers.SerializerMethodField()
+    user2_nickname = serializers.SerializerMethodField()
     user1_profile_img = serializers.SerializerMethodField()
     user2_profile_img = serializers.SerializerMethodField()
     user1_is_online = serializers.SerializerMethodField()
@@ -29,25 +29,35 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         else:
             return obj.msg_count_1
 
-    def get_user1_profile_img(self, obj) -> Optional[str]:
+    def get_user_nickname(self, user) -> Optional[str]:
+        return user.nickname if user else None
+
+    def get_user1_nickname(self, obj) -> Optional[str]:
+        return self.get_user_nickname(obj.user1)
+
+    def get_user2_nickname(self, obj) -> Optional[str]:
+        return self.get_user_nickname(obj.user2)
+
+    def get_user_profile_img(self, obj, user) -> Optional[str]:
         request = self.context.get('request')
-        if request and obj.user1.profile_img:
-            return request.build_absolute_uri(obj.user1.profile_img.url)
-        else:
-            return None
+        if request and user and user.profile_img:
+            return request.build_absolute_uri(user.profile_img.url)
+        return None
+
+    def get_user1_profile_img(self, obj) -> Optional[str]:
+        return self.get_user_profile_img(obj, obj.user1)
 
     def get_user2_profile_img(self, obj) -> Optional[str]:
-        request = self.context.get('request')
-        if request and obj.user2.profile_img:
-            return request.build_absolute_uri(obj.user2.profile_img.url)
-        else:
-            return None
+        return self.get_user_profile_img(obj, obj.user2)
+
+    def get_user_is_online(self, user) -> bool:
+        return user.online_count > 0 if user else False
 
     def get_user1_is_online(self, obj) -> bool:
-        return obj.user1.online_count > 0
+        return self.get_user_is_online(obj.user1)
 
     def get_user2_is_online(self, obj) -> bool:
-        return obj.user2.online_count > 0
+        return self.get_user_is_online(obj.user2)
 
 class MessageSerializer(serializers.ModelSerializer):
     nickname = serializers.SerializerMethodField()
@@ -56,5 +66,5 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
         read_only_fields = ['id', 'chatroom', 'sender', 'nickname', 'message', 'created_at']
 
-    def get_nickname(self, obj) -> str:
-        return obj.sender.nickname
+    def get_nickname(self, obj) -> Optional[str]:
+        return obj.sender.nickname if obj.sender else None

@@ -11,11 +11,12 @@ from blocks.models import Block
 
 class ChatMixin:
     async def handle_public_chat(self, text_data_json):
-        user = self.user
         message = text_data_json.get('message')
         if message is None:
             await self.send_error_message("Message not provided")
             return
+
+        user = await self.get_user_latest()
 
         await self.channel_layer.group_send(
             self.online_users_group, {
@@ -259,4 +260,8 @@ class ChatMixin:
     @database_sync_to_async
     def refresh_chatroom(self):
         self.chatroom.refresh_from_db()
+
+    @database_sync_to_async
+    def get_user_latest(self):
+        return  Player.objects.get(id=self.user.id)
 
