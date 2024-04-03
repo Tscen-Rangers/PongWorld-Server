@@ -25,9 +25,15 @@ class ChatRoomSerializer(serializers.ModelSerializer):
         else:
             return 0
         if obj.user1 == user:
-            return obj.msg_count_2
+            if obj.user2:
+                return obj.msg_count_2
+            else:
+                return 0
         else:
-            return obj.msg_count_1
+            if obj.user1:
+                return obj.msg_count_1
+            else:
+                return 0
 
     def get_user_nickname(self, user) -> Optional[str]:
         return user.nickname if user else None
