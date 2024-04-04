@@ -1,6 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from django.db.models import Q, Count
+from typing import Union
 
 from ..models import Friend
 from player.models import Player
@@ -37,7 +38,7 @@ class FriendSerializer(serializers.ModelSerializer):
                 return UserSerializer(obj.follower, context={'request': request}).data
         return None
 
-    def get_is_battle_request_allowed(self, obj):
+    def get_is_battle_request_allowed(self, obj) -> Union[bool, None]:
         user_data = self.get_user(obj)
         if user_data:
             user_id = user_data['id']

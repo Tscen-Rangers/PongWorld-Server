@@ -47,19 +47,21 @@ class PlayerSettingView(viewsets.ModelViewSet):
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'
-class OnlinePlayerListView(generics.ListAPIView):
+class OnlinePlayerListView(viewsets.ModelViewSet):
     serializer_class = PlayerSerializer
     pagination_class = CustomPlayerPagination
 
+    @extend_schema(operation_id='search_online_players')
     def get_queryset(self):
         user_id = self.request.user.id
         blocked_users = Block.objects.filter(blocker_id=user_id).values_list('blocked_id', flat=True)
         return Player.objects.filter(online_count__gt=0).exclude(id__in=blocked_users).exclude(id=user_id)
 
-class OnlinePlayerSearchView(generics.ListAPIView):
+class OnlinePlayerSearchView(viewsets.ModelViewSet):
     serializer_class = PlayerSerializer
     pagination_class = CustomPlayerPagination
 
+    @extend_schema(operation_id='search_online_players_by_name')
     def get_queryset(self):
         user_id = self.request.user.id
         name = self.kwargs.get('name', '')
@@ -77,13 +79,14 @@ class OnlinePlayerSearchView(generics.ListAPIView):
         return queryset
 
 class PlayerProfileView(viewsets.ModelViewSet):
+    serializer_class = PlayerSerializer
 
     @extend_schema(operation_id='get_my_profile')
     def get_my_profile(self, request):
         me = request.user
 
         current_user = Player.objects.get(id=me.id)
-        serializer = PlayerSerializer(current_user, context={'request': request})
+        serializer = get_serializer_class(current_user, context={'request': request})
         games = (Game.objects.filter(player1=me) | Game.objects.filter(player2=me)) & Game.objects.filter(status=2)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
             games = games.order_by('-created_at')[:20]
@@ -150,15 +153,3 @@ class SearchUserView(viewsets.ModelViewSet):
         serializer = SearchPlayerSerializer(users, many=True, context={'request': request})
     
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-
-
-
-
-        
-
-        
-
-        
-

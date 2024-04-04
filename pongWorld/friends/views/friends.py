@@ -135,7 +135,7 @@ class FriendReqResView(viewsets.ModelViewSet):
 class SearchFriendsView(viewsets.ModelViewSet):
     serializer_class = FriendSerializer
 
-    @extend_schema(operation_id='search_friends')
+    @extend_schema(operation_id='search_friends_by_name')
     def get_friends(self, request, name):
         me = request.user
 
@@ -154,7 +154,7 @@ class SearchFriendsView(viewsets.ModelViewSet):
     
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    @extend_schema(request=None)
+    @extend_schema(request=None, operation_id='get_all_friends')
     def get_all_friends(self, request):
         me = request.user  # 현재 요청을 보낸 사용자
 
