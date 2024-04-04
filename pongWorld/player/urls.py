@@ -4,8 +4,8 @@ from . import views
 app_name = "player"
 
 urlpatterns = [
-    path('online/', views.OnlinePlayerListView.as_view({'get': 'get_queryset'}), name='online_players_list'),
-    path('online/<str:name>/', views.OnlinePlayerSearchView.as_view({'get': 'get_queryset'}), name='online_players_search'),
+    path('online/', views.OnlinePlayerListView.as_view()),
+    path('online/<str:name>/', views.OnlinePlayerSearchView.as_view()),
     path('setting/', views.PlayerSettingView.as_view({'get': 'get_user_info'}), name="get_user_info"),
     path('setting/<int:pk>/', views.PlayerSettingView.as_view({'patch': 'partial_update'}), name="set_user_info"),
     path('search/', views.SearchUserView.as_view({'get': 'get_all_users'}), name="get_all_users"),

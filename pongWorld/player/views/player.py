@@ -47,7 +47,7 @@ class PlayerSettingView(viewsets.ModelViewSet):
 class CustomPlayerPagination(CursorPagination):
     page_size = 30
     ordering = '-last_login_time'
-class OnlinePlayerListView(viewsets.ModelViewSet):
+class OnlinePlayerListView(generics.ListAPIView):
     serializer_class = PlayerSerializer
     pagination_class = CustomPlayerPagination
 
@@ -57,7 +57,7 @@ class OnlinePlayerListView(viewsets.ModelViewSet):
         blocked_users = Block.objects.filter(blocker_id=user_id).values_list('blocked_id', flat=True)
         return Player.objects.filter(online_count__gt=0).exclude(id__in=blocked_users).exclude(id=user_id)
 
-class OnlinePlayerSearchView(viewsets.ModelViewSet):
+class OnlinePlayerSearchView(generics.ListAPIView):
     serializer_class = PlayerSerializer
     pagination_class = CustomPlayerPagination
 
