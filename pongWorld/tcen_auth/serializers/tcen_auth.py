@@ -19,3 +19,12 @@ class OAuthCallbackSerailizer(serializers.Serializer):
     access_token = serializers.CharField()
     is_new_user = serializers.BooleanField()
     user = OAuthPlayerSerializer()
+
+class AccountDeletedSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+class LogoutSerializer(serializers.Serializer):
+    message = serializers.CharField()
+
+class VerifyCodePageSerializer(serializers.Serializer):
+    message = serializers.CharField()

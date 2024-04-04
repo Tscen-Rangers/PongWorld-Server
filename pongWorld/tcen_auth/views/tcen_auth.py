@@ -28,7 +28,10 @@ from player.models import Player
 from ..serializers import (
     OAuthCodeSerializer,
     OAuthLoginURLSerializer,
-    OAuthCallbackSerailizer
+    OAuthCallbackSerailizer,
+    AccountDeletedSerializer,
+    LogoutSerializer,
+    VerifyCodePageSerializer
 )
 
 class OAuthLoginURLView(generics.GenericAPIView):
@@ -223,6 +226,8 @@ def generate_auth_code(length=6):
 
 #@method_decorator(csrf_exempt, name='dispatch')
 class VerifyCodePageView(generics.GenericAPIView):
+    serializer_class = VerifyCodePageSerializer
+
     @extend_schema(
         methods=['GET', 'POST'],  # 이 뷰에서 지원하는 메소드
         description='인증 코드를 검증합니다.',
@@ -242,7 +247,8 @@ class VerifyCodePageView(generics.GenericAPIView):
             user.auth_code = auth_code
             user.save()
             send_email(user_email, "Your authentication code", f"Your authentication code is: {auth_code}")
-            return JsonResponse({'message': 'Authentication code sent'})
+            serializer = get_serializer_class({'message': 'Authentication code sent'})
+            return JsonResponse(serializer.data)
 
     def post(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -259,7 +265,9 @@ class VerifyCodePageView(generics.GenericAPIView):
         if user_input_code == expected_code:
             user.auth_code = None  # 인증 코드 사용 후 초기화
             user.save()
-            return JsonResponse({'message': 'Authentication successful'})
+            serializer = get_serializer_class({'message': 'Authentication successful'})
+            return JsonResponse(serializer.data)
+            # return JsonResponse({'message': 'Authentication successful'})
         else:
             return JsonResponse({'error': 'Invalid authentication code'}, status=400)
         
@@ -276,7 +284,9 @@ class VerifyCodePageView(generics.GenericAPIView):
             # 이중 인증 활성화/비활성화 상태 업데이트
             user.two_factor_auth_enabled = enable_two_factor
             user.save()
-            return Response({'message': 'Two-factor authentication status updated successfully'})
+            serializer = get_serializer_class({'message': 'Two-factor authentication status updated successfully'})
+            return Response(serializer.data)
+            # return Response({'message': 'Two-factor authentication status updated successfully'})
 
         return Response({'error': 'Invalid request'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -285,7 +295,7 @@ class DeleteAccountView(generics.GenericAPIView):
     @extend_schema(
         methods=['DELETE'],  # 이 뷰에서 지원하는 메소드
         description='계정을 삭제합니다. 이중 인증이 활성화된 계정만 삭제가능',
-        responses={200: 'Account successfully deleted'}
+        responses={200: AccountDeletedSerializer}
     )
     def delete(self, request, *args, **kwargs):
         user = request.user
@@ -298,14 +308,18 @@ class DeleteAccountView(generics.GenericAPIView):
                 default_storage.delete(full_profile_img_path)
 
             user.delete()
-            return Response({'message': 'Account successfully deleted'}, status=status.HTTP_200_OK)
+            serializer = AccountDeletedSerializer({'message': 'Account successfully deleted'})
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
             return Response({'error': 'Two-factor authentication is not enabled. Account deletion is not allowed.'}, status=status.HTTP_403_FORBIDDEN)
 
 class LogoutView(generics.GenericAPIView):
+    serializer_class = LogoutSerializer
+
     def post(self, request, *args, **kwargs):
         logout(request)
-        return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+        serializer = get_serializer_class({'message': 'Account successfully deleted'})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 # def oauth2callback(request):# 파라미터는 HttpRequest 객체 Django가 자동으로 뷰 함수에 전달됨
 #     # 인증 코드 받기

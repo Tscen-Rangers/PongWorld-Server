@@ -8,10 +8,11 @@ from player.models import Player
 from player.serializers import PlayerSettingSerializer
 
 class GameView(viewsets.ModelViewSet):
+    serializer_class = PlayerSettingSerializer
 
     def get_game_home_view(self, request):
         top5_players = Player.objects.order_by('-total_score')[:5]
-        serializer = PlayerSettingSerializer(top5_players, many=True, context={'request': request})
+        serializer = get_serializer_class(top5_players, many=True, context={'request': request})
 
         games = Game.objects.filter(status=2)
         if games.exists():  # 게임이 하나도 없을 때 예외 처리
