@@ -247,7 +247,7 @@ class VerifyCodePageView(generics.GenericAPIView):
             user.auth_code = auth_code
             user.save()
             send_email(user_email, "Your authentication code", f"Your authentication code is: {auth_code}")
-            serializer = get_serializer_class({'message': 'Authentication code sent'})
+            serializer = self.get_serializer({'message': 'Authentication code sent'})
             return JsonResponse(serializer.data)
 
     def post(self, request, *args, **kwargs):
@@ -265,7 +265,7 @@ class VerifyCodePageView(generics.GenericAPIView):
         if user_input_code == expected_code:
             user.auth_code = None  # 인증 코드 사용 후 초기화
             user.save()
-            serializer = get_serializer_class({'message': 'Authentication successful'})
+            serializer = self.get_serializer({'message': 'Authentication successful'})
             return JsonResponse(serializer.data)
             # return JsonResponse({'message': 'Authentication successful'})
         else:
@@ -284,7 +284,7 @@ class VerifyCodePageView(generics.GenericAPIView):
             # 이중 인증 활성화/비활성화 상태 업데이트
             user.two_factor_auth_enabled = enable_two_factor
             user.save()
-            serializer = get_serializer_class({'message': 'Two-factor authentication status updated successfully'})
+            serializer = self.get_serializer({'message': 'Two-factor authentication status updated successfully'})
             return Response(serializer.data)
             # return Response({'message': 'Two-factor authentication status updated successfully'})
 
@@ -318,7 +318,7 @@ class LogoutView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         logout(request)
-        serializer = get_serializer_class({'message': 'Account successfully deleted'})
+        serializer = self.get_serializer({'message': 'Account successfully deleted'})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 # def oauth2callback(request):# 파라미터는 HttpRequest 객체 Django가 자동으로 뷰 함수에 전달됨
