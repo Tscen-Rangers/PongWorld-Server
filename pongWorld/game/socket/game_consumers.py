@@ -230,6 +230,7 @@ class GameConsumer:
         )
     
     async def start_game_loop(self):
+        await asyncio.sleep(3)
         while True:
             try:
                 # 공의 상태를 계산 중입니다.

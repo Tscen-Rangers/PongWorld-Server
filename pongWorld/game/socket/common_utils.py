@@ -8,7 +8,6 @@ import asyncio
 
 async def start_game(consumer_instance):
     consumer_instance.rooms[consumer_instance.game.id].init_game(consumer_instance)
-    await asyncio.sleep(2)
     await send_game_state(consumer_instance)
     asyncio.create_task(consumer_instance.rooms[consumer_instance.game.id].start_game_loop())  # 백그라운드에서 실행
 
