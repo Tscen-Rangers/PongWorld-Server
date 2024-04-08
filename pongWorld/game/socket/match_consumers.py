@@ -10,7 +10,7 @@ from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSe
 from .common_utils import start_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
 from game.models import Game, Tournament
 from player.models import Player
-from .game_consumers import GameConsumer, TournamentGame
+from .game_consumers import GameConsumer, TournamentGame, Bye
 from config.utils import CommonUtils
 
 class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
@@ -130,7 +130,16 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
     async def disconnect(self, close_code):
         await database_sync_to_async(self.game.refresh_from_db)()
         if self.player == self.game.player1 and self.game.status == 0:
-            await database_sync_to_async(self.game.delete)()
+            return await database_sync_to_async(self.game.delete)()
+        if self.game.status == 1:
+            if self.player == RandomMatchConsumer.rooms[self.game.id].player1:
+                RandomMatchConsumer.rooms[self.game.id].player1_status = 0
+            if self.player == RandomMatchConsumer.rooms[self.game.id].player2:
+                RandomMatchConsumer.rooms[self.game.id].player2_status = 0
+            if RandomMatchConsumer.rooms[self.game.id].player1_status == 0 and \
+                RandomMatchConsumer.rooms[self.game.id].player2_status == 0:
+                await database_sync_to_async(self.game.delete)()
+
 
 class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     rooms = {}
@@ -206,10 +215,29 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             await self.channel_layer.group_discard(self.tournament_final_group_name, self.channel_name)
             if self.tournament_semi_group_name in TournamentMatchConsumer.rooms:
                 del TournamentMatchConsumer.rooms[self.tournament_semi_group_name]
-        if hasattr(self, 'tournament_final_group_name') and self.tournament_final_group_name in TournamentMatchConsumer.rooms:
-            del TournamentMatchConsumer.rooms[self.tournament_final_group_name]
-        if hasattr(self, 'tournament_semi_group_name'):
+            await database_sync_to_async(self.tournament.refresh_from_db)()
+            if self.tournament.status == 0:
+                if self.player == TournamentMatchConsumer.rooms[self.tournament_final_group_name].player1:
+                    TournamentMatchConsumer.rooms[self.tournament_final_group_name].player1_status = 0
+                if self.player == TournamentMatchConsumer.rooms[self.tournament_final_group_name].player2:
+                    TournamentMatchConsumer.rooms[self.tournament_final_group_name].player2_status = 0
+                if TournamentMatchConsumer.rooms[self.tournament_final_group_name].player1_status == 0 and \
+                    TournamentMatchConsumer.rooms[self.tournament_final_group_name].player2_status == 0:
+                    del TournamentMatchConsumer.rooms[self.tournament_final_group_name]
+                    await database_sync_to_async(self.tournament.delete)()
+        elif hasattr(self, 'tournament_semi_group_name'): # 준결승 끝나고 or 진행 중 퇴장
             await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
+            if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1:
+                TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1_status = 0
+            if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player2:
+                TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player2_status = 0
+            # 승자가 나갔을 때 결승 부전승
+            if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
+                TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner_status = 0
+            # 준결승 경기에서 둘 다 나가면 승자가 없으니까 부전승
+            if TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1_status == 0 and \
+                TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player2_status == 0:
+                del TournamentMatchConsumer.rooms[self.tournament_semi_group_name]
         await self.close()
 
     @database_sync_to_async
@@ -295,6 +323,15 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
                 self.tournament_final_group_name = f'tournament_{self.tournament.id}_final'
                 await self.channel_layer.group_add(self.tournament_final_group_name, self.channel_name)
+
+                if (self.tournament_semi_group_name == f'tournament_{self.tournament.id}_A' and \
+                    (f'tournament_{self.tournament.id}_B' not in TournamentMatchConsumer.rooms or \
+                    TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].winner_status == 0)) or \
+                    (self.tournament_semi_group_name == f'tournament_{self.tournament.id}_B' and \
+                    (f'tournament_{self.tournament.id}_A' not in TournamentMatchConsumer.rooms or \
+                    TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].winner_status == 0)):
+                    byDefault = Bye(self)
+                    return await byDefault.get_unearned_win(self.player)
 
                 player1 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_A'].winner
                 player2 = TournamentMatchConsumer.rooms[f'tournament_{self.tournament.id}_B'].winner
@@ -434,7 +471,14 @@ class GameMixin:
                 await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
                 await self.send(text_data=json.dumps({"type": "QUIT_FRIEND_GAME", "message": "Quit Game Successfully."}))
-            else:   # 게임 중에 나갈 때
+            elif self.game.status == 1: # 게임 중에 나갈 때
+                if self.player == GameMixin.rooms[self.game.id].player1:
+                    GameMixin.rooms[self.game.id].player1_status = 0
+                if self.player == GameMixin.rooms[self.game.id].player2:
+                    GameMixin.rooms[self.game.id].player2_status = 0
+                if GameMixin.rooms[self.game.id].player1_status == 0 and \
+                    GameMixin.rooms[self.game.id].player2_status == 0:
+                    await database_sync_to_async(self.game.delete)()
                 await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
         except Exception as e:
             await self.send(text_data=json.dumps({"error": "[" + e.__class__.__name__ + "] " + str(e)}))

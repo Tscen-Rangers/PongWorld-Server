@@ -28,6 +28,8 @@ class GameConsumer:
         self.add_ball_speed = self.speed / 5
         self.init_ball_position = True
         self.slow_ball_speed = True     # 처음에 공 느리게(패들에 닿기 전)
+        self.player1_status = 1
+        self.player2_status = 1
 
     def init_game(self, consumer_instance):
         self.game = consumer_instance.game
@@ -233,6 +235,8 @@ class GameConsumer:
                 # 공의 상태를 계산 중입니다.
                 if not await self.calculate_ball_state():
                     break
+                if self.player1_status == 0 and self.player2_status == 0:
+                    break
                 # 패들 위치 업데이트 후 게임 상태를 전송합니다.
                 await self.channel_layer.group_send(
                     self.game_group_name,
@@ -349,6 +353,7 @@ class TournamentGame(GameConsumer):
         self.player1 = player1
         self.player2 = player2
         self.winner = None
+        self.winner_status = 1
 
     # 준결승
     async def start_tournament_semi_final_loop(self, consumer_instance):
@@ -366,6 +371,8 @@ class TournamentGame(GameConsumer):
             try:
                 # 공의 상태를 계산 중입니다.
                 if not await self.calculate_tournament_ball_state():
+                    break
+                if self.player1_status == 0 and self.player2_status == 0:
                     break
                 # 패들 위치 업데이트 후 게임 상태를 전송합니다.
                 await self.channel_layer.group_send(
@@ -398,6 +405,8 @@ class TournamentGame(GameConsumer):
             try:
                 # 공의 상태를 계산 중입니다.
                 if not await self.calculate_tournament_ball_state():
+                    break
+                if self.player1_status == 0 and self.player2_status == 0:
                     break
                 # 패들 위치 업데이트 후 게임 상태를 전송합니다.
                 await self.channel_layer.group_send(
@@ -588,6 +597,65 @@ class TournamentGame(GameConsumer):
             'new_rating' : {
                 'winner': {
                     'original': self.winner.total_score,
+                    'new': winner_new_rating,
+                    'difference': 420,
+                }
+            },
+            'new_ranking' : {
+                'winner': {
+                    'original': winner_ranking,
+                    'new': winner_new_ranking,
+                    'difference': winner_new_ranking - winner_ranking
+                }
+            }
+        }
+        return game_result
+
+class Bye:
+    def __init__(self, consumer_instance):
+        self.channel_layer = consumer_instance.channel_layer
+        self.tournament = consumer_instance.tournament
+        self.game_group_name = consumer_instance.tournament_final_group_name
+
+    async def get_unearned_win(self, winner):
+        setattr(self.tournament, 'status', 1)
+        setattr(self.tournament, 'winner', winner)
+        await database_sync_to_async(self.tournament.save)()
+
+        winner_ranking = self.get_ranking(winner, winner.total_score)
+
+        # new rating 반영
+        winner_new_rating = winner.total_score + 420
+        
+        # new ranking 반영
+        winner_new_ranking = self.get_ranking(winner, winner_new_rating)
+        
+        await self.channel_layer.group_send(
+            self.game_group_name,
+            {
+                'type': 'game_info',
+                'message_type': 'END_OF_FINAL',
+                'data': self.get_final_result(winner, winner_new_rating, winner_ranking, winner_new_ranking)
+            }
+        )
+        
+        # new rating 저장
+        setattr(winner, 'total_score', winner_new_rating)
+        await database_sync_to_async(winner.save)()
+
+    def get_ranking(self, player, player_score):
+        higher_rank_count = Player.objects.filter(total_score__gt=player_score, is_superuser=False).exclude(id=player.id).count()
+        
+        player_rank = higher_rank_count + 1
+
+        return player_rank
+
+    def get_final_result(self, winner, winner_new_rating, winner_ranking, winner_new_ranking):
+        game_result = {
+            'winner': PlayerSerializer(winner).data,
+            'new_rating' : {
+                'winner': {
+                    'original': winner.total_score,
                     'new': winner_new_rating,
                     'difference': 420,
                 }
