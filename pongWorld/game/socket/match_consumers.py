@@ -306,7 +306,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             player1 = self.tournament.player3
             player2 = self.tournament.player4
         await self.channel_layer.group_add(self.tournament_semi_group_name, self.channel_name)
-        self.speed = 1
+        self.speed = 2
         await asyncio.sleep(1)
         await self.start_semi_final(self.tournament_semi_group_name, player1, player2)
 
