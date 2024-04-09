@@ -169,16 +169,16 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 raise ValueError("Your matching is already in progress.")
 
             if not self.players_queue:
-                TournamentMatchConsumer.itournament_tmp_group_name = f'tournament_tmp_{TournamentMatchConsumer.tournament_tmp_id}'
+                TournamentMatchConsumer.tournament_tmp_group_name = f'tournament_tmp_{TournamentMatchConsumer.tournament_tmp_id}'
             self.players_queue.append(self.player)
-            await self.channel_layer.group_add(TournamentMatchConsumer.itournament_tmp_group_name, self.channel_name)
+            await self.channel_layer.group_add(TournamentMatchConsumer.tournament_tmp_group_name, self.channel_name)
             await self.send_queue_length()
             
             if len(self.players_queue) == 4:
                 self.tournament = await self.create_tournament_room()
                 serializer_data = await self.get_serializer_data()
                 await self.channel_layer.group_send(
-                    TournamentMatchConsumer.itournament_tmp_group_name,
+                    TournamentMatchConsumer.tournament_tmp_group_name,
                     {
                         'type': 'game_info',
                         'message_type': 'TOURNAMENT_PARTICIPANTS',
@@ -207,7 +207,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
     async def disconnect(self, close_code):
         if self.player in self.players_queue:
             self.players_queue.remove(self.player)
-            await self.channel_layer.group_discard(TournamentMatchConsumer.itournament_tmp_group_name, self.channel_name)
+            await self.channel_layer.group_discard(TournamentMatchConsumer.tournament_tmp_group_name, self.channel_name)
             await self.send_queue_length()
 
     async def end_tournament(self, data):
@@ -226,6 +226,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     del TournamentMatchConsumer.rooms[self.tournament_final_group_name]
                     await database_sync_to_async(self.tournament.delete)()
         elif hasattr(self, 'tournament_semi_group_name'): # 준결승 끝나고 or 진행 중 퇴장
+            await self.channel_layer.group_discard(self.tournament_group_name, self.channel_name)
             await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1:
                 TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1_status = 0
@@ -234,10 +235,26 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             # 승자가 나갔을 때 결승 부전승
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
                 TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner_status = 0
+                await self.channel_layer.group_send(
+                    self.tournament_group_name,
+                    {
+                        'type': 'game_message',
+                        'message_type': 'BY_DEFAULT',
+                        'message': "The final is by default.",
+                    }
+                )
             # 준결승 경기에서 둘 다 나가면 승자가 없으니까 부전승
             if TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1_status == 0 and \
                 TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player2_status == 0:
                 del TournamentMatchConsumer.rooms[self.tournament_semi_group_name]
+                await self.channel_layer.group_send(
+                    self.tournament_group_name,
+                    {
+                        'type': 'game_message',
+                        'message_type': 'BY_DEFAULT',
+                        'message': "The final is by default.",
+                    }
+                )
         await self.close()
 
     @database_sync_to_async
@@ -258,7 +275,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def send_queue_length(self):
         await self.channel_layer.group_send(
-            TournamentMatchConsumer.itournament_tmp_group_name,
+            TournamentMatchConsumer.tournament_tmp_group_name,
             {
                 'type': 'queue_length',
                 'participants_num': len(self.players_queue)
@@ -270,7 +287,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
 
     async def send_matching_complete(self):
         await self.channel_layer.group_send(
-            TournamentMatchConsumer.itournament_tmp_group_name,
+            TournamentMatchConsumer.tournament_tmp_group_name,
             {
                 'type': 'game_message',
                 'message_type': 'SUCCESS_SEMI_FINAL_MATCHING',
