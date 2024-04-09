@@ -231,8 +231,6 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     del TournamentMatchConsumer.rooms[self.tournament_final_group_name]
                     await database_sync_to_async(self.tournament.delete)()
         elif hasattr(self, 'tournament_semi_group_name'): # 준결승 끝나고 or 진행 중 퇴장
-            await self.channel_layer.group_discard(self.tournament_group_name, self.channel_name)
-            await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1:
                 TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player1_status = 0
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].player2:
@@ -240,12 +238,16 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             # 승자가 나갔을 때 결승 부전승
             if self.player == TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner:
                 TournamentMatchConsumer.rooms[self.tournament_semi_group_name].winner_status = 0
+                if self.tournament_semi_group_name == f'tournament_{self.tournament.id}_A':
+                    message_type = 'BYE_BECAUSE_OF_ANOTHER_WINNER_A'
+                if self.tournament_semi_group_name == f'tournament_{self.tournament.id}_B':
+                    message_type = 'BYE_BECAUSE_OF_ANOTHER_WINNER_B'
                 await self.channel_layer.group_send(
                     self.tournament_group_name,
                     {
                         'type': 'game_message',
-                        'message_type': 'BY_DEFAULT',
-                        'message': "The final is by default.",
+                        'message_type': message_type,
+                        'message': "The final is by default. Because the winner of the other team went out.",
                     }
                 )
             # 준결승 경기에서 둘 다 나가면 승자가 없으니까 부전승
@@ -256,11 +258,13 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     self.tournament_group_name,
                     {
                         'type': 'game_message',
-                        'message_type': 'BY_DEFAULT',
-                        'message': "The final is by default.",
+                        'message_type': 'BYE_BECAUSE_OF_ANOTHER_TEAM',
+                        'message': "The final is by default. Because there is no winner in the other team.",
                     }
                 )
-        await self.close()
+            await self.channel_layer.group_discard(self.tournament_group_name, self.channel_name)
+            await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
+        await self.close() # 쉬밬 왜 에러 나느겨게쏙 ㅅㅂ
 
     async def modify_player_status(self):
         await database_sync_to_async(self.tournament.refresh_from_db)()
