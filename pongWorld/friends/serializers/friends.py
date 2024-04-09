@@ -43,14 +43,18 @@ class FriendSerializer(serializers.ModelSerializer):
         if user_data:
             user_id = user_data['id']
             playing_game_cnt = Game.objects.filter(
-                Q(player1_id=user_id) | Q(player2_id=user_id),
+                Q(Q(player1_id=user_id, status__in=[0, 1], player1_status=0) |
+                Q(player2_id=user_id, status__in=[0, 1], player2_status=0)),
                 ~Q(status=2)
             ).count()
             if playing_game_cnt > 0:
                 return False
             
             playing_tournament_cnt = Tournament.objects.filter(
-                Q(player1_id=user_id) | Q(player2_id=user_id) | Q(player3_id=user_id) | Q(player4_id=user_id),
+                Q(Q(player1_id=user_id, status=0, player1_status=0) |
+                Q(player2_id=user_id, status=0, player2_status=0) |
+                Q(player3_id=user_id, status=0, player3_status=0) |
+                Q(player4_id=user_id, status=0, player4_status=0)),
                 ~Q(status=1)
             ).count()
             if playing_tournament_cnt > 0:

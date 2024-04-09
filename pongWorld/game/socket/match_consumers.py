@@ -134,8 +134,12 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
         if self.game.status == 1:
             if self.player == RandomMatchConsumer.rooms[self.game.id].player1:
                 RandomMatchConsumer.rooms[self.game.id].player1_status = 0
+                self.game.player1_status = 1
+                await database_sync_to_async(self.game.save)()
             if self.player == RandomMatchConsumer.rooms[self.game.id].player2:
                 RandomMatchConsumer.rooms[self.game.id].player2_status = 0
+                self.game.player2_status = 1
+                await database_sync_to_async(self.game.save)()
             if RandomMatchConsumer.rooms[self.game.id].player1_status == 0 and \
                 RandomMatchConsumer.rooms[self.game.id].player2_status == 0:
                 await database_sync_to_async(self.game.delete)()
@@ -211,6 +215,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
             await self.send_queue_length()
 
     async def end_tournament(self, data):
+        await self.modify_player_status()
         if hasattr(self, 'tournament_final_group_name'):
             await self.channel_layer.group_discard(self.tournament_final_group_name, self.channel_name)
             if self.tournament_semi_group_name in TournamentMatchConsumer.rooms:
@@ -256,6 +261,31 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                     }
                 )
         await self.close()
+
+    async def modify_player_status(self):
+        await database_sync_to_async(self.tournament.refresh_from_db)()
+        players = {
+            'player1': await database_sync_to_async(lambda: self.tournament.player1)(),
+            'player2': await database_sync_to_async(lambda: self.tournament.player2)(),
+            'player3': await database_sync_to_async(lambda: self.tournament.player3)(),
+            'player4': await database_sync_to_async(lambda: self.tournament.player4)(),
+        }
+        current_player_role = None
+
+        for role, player in players.items():
+            if player.id == self.player.id:
+                current_player_role = role
+                break
+
+        if current_player_role == 'player1':
+            self.tournament.player1_status = 1
+        if current_player_role == 'player2':
+            self.tournament.player2_status = 1
+        if current_player_role == 'player3':
+            self.tournament.player3_status = 1
+        if current_player_role == 'player4':
+            self.tournament.player4_status = 1
+        await database_sync_to_async(self.tournament.save)()
 
     @database_sync_to_async
     def create_tournament_room(self):
@@ -491,8 +521,12 @@ class GameMixin:
             elif self.game.status == 1: # 게임 중에 나갈 때
                 if self.player == GameMixin.rooms[self.game.id].player1:
                     GameMixin.rooms[self.game.id].player1_status = 0
+                    self.game.player1_status = 1
+                    await database_sync_to_async(self.game.save)()
                 if self.player == GameMixin.rooms[self.game.id].player2:
                     GameMixin.rooms[self.game.id].player2_status = 0
+                    self.game.player2_status = 1
+                    await database_sync_to_async(self.game.save)()
                 if GameMixin.rooms[self.game.id].player1_status == 0 and \
                     GameMixin.rooms[self.game.id].player2_status == 0:
                     await database_sync_to_async(self.game.delete)()

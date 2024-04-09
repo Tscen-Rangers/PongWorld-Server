@@ -9,17 +9,18 @@ class Game(TimestampBaseModel):
     player2_score = models.PositiveIntegerField(null=True, blank=True)
     winner = models.ForeignKey(Player, related_name='game_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
     
+    PLAYER_STATUS_CHOICES = (
+        (0, "Participating"),
+        (1, "Leave"),
+    )
+    player1_status = models.PositiveIntegerField(choices=PLAYER_STATUS_CHOICES, default=0)
+    player2_status = models.PositiveIntegerField(choices=PLAYER_STATUS_CHOICES, default=0)
+    
     GAME_MODES_CHOICES = (
         (0, "Quick Match"),
         (1, "Invite Friend"),
     )
     mode = models.PositiveIntegerField(choices=GAME_MODES_CHOICES)
-
-    # DEVICE_MODES_CHOICES = (
-    #     (0, "KeyBoard"),
-    #     (1, "Mouse"),
-    # )
-    # input_device = models.PositiveIntegerField(choices=DEVICE_MODES_CHOICES)
 
     GAME_LEVEL_CHOICES = (
         (1, "Easy"),
@@ -47,6 +48,11 @@ class Tournament(TimestampBaseModel):
     player3 = models.ForeignKey(Player, related_name='tournament_player3_id', on_delete=models.SET_NULL, null=True, blank=True)
     player4 = models.ForeignKey(Player, related_name='tournament_player4_id', on_delete=models.SET_NULL, null=True, blank=True)
     winner = models.ForeignKey(Player, related_name='tournament_winner_id', on_delete=models.SET_NULL, null=True, blank=True)
+    player1_status = models.PositiveIntegerField(choices=Game.PLAYER_STATUS_CHOICES, default=0)
+    player2_status = models.PositiveIntegerField(choices=Game.PLAYER_STATUS_CHOICES, default=0)
+    player3_status = models.PositiveIntegerField(choices=Game.PLAYER_STATUS_CHOICES, default=0)
+    player4_status = models.PositiveIntegerField(choices=Game.PLAYER_STATUS_CHOICES, default=0)
+    
     GAME_STATUS_CHOICES = (
         (0, "In Progress"),
         (1, "End Game")
