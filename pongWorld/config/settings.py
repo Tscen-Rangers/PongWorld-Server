@@ -228,6 +228,7 @@ CORS_ORIGIN_WHITELIST = [
     'https://localhost',
     'http://127.0.0.1',
     'http://localhost',
+    f'{MY_SITE_SCHEME}://{MY_SITE_DOMAIN}',
 ]
 
 CORS_ALLOWED_CREDENTIALS = True

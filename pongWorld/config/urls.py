@@ -9,12 +9,12 @@ router = routers.DefaultRouter()
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('players/', include(('player.urls', 'api'))),
-    path('friends/', include (('friends.urls', 'api'))),
-    path('block/', include (('blocks.urls', 'api'))),
-    path('chat/', include('chat.urls')),
-    path('game/', include('game.urls')),
-    path('tcen-auth/', include('tcen_auth.urls')),
+    path('api/players/', include(('player.urls', 'api'))),
+    path('api/friends/', include (('friends.urls', 'api'))),
+    path('api/block/', include (('blocks.urls', 'api'))),
+    path('api/chat/', include('chat.urls')),
+    path('api/game/', include('game.urls')),
+    path('api/tcen-auth/', include('tcen_auth.urls')),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
