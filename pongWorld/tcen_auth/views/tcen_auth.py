@@ -294,24 +294,22 @@ class VerifyCodePageView(generics.GenericAPIView):
 class DeleteAccountView(generics.GenericAPIView):
     @extend_schema(
         methods=['DELETE'],  # 이 뷰에서 지원하는 메소드
-        description='계정을 삭제합니다. 이중 인증이 활성화된 계정만 삭제가능',
+        description='계정을 삭제합니다.',
         responses={200: AccountDeletedSerializer}
     )
     def delete(self, request, *args, **kwargs):
         user = request.user
 
-        if user.two_factor_auth_enabled:
-            # delete user profile image from media
-            profile_img_path = str(user.profile_img)
-            full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
-            if full_profile_img_path and default_storage.exists(full_profile_img_path):
-                default_storage.delete(full_profile_img_path)
+        # 사용자 프로필 이미지가 있으면 삭제
+        profile_img_path = str(user.profile_img)
+        full_profile_img_path = os.path.join(settings.MEDIA_ROOT, profile_img_path)
+        if full_profile_img_path and default_storage.exists(full_profile_img_path):
+            default_storage.delete(full_profile_img_path)
 
-            user.delete()
-            serializer = AccountDeletedSerializer({'message': 'Account successfully deleted'})
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            return Response({'error': 'Two-factor authentication is not enabled. Account deletion is not allowed.'}, status=status.HTTP_403_FORBIDDEN)
+        # 사용자 계정 삭제
+        user.delete()
+        serializer = AccountDeletedSerializer({'message': 'Account successfully deleted'})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class LogoutView(generics.GenericAPIView):
     serializer_class = LogoutSerializer
