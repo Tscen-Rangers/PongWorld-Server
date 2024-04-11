@@ -30,6 +30,7 @@ class GameConsumer:
         self.slow_ball_speed = True     # 처음에 공 느리게(패들에 닿기 전)
         self.player1_status = 1
         self.player2_status = 1
+        self.paddle_touch = 0
 
     def init_game(self, consumer_instance):
         self.game = consumer_instance.game
@@ -64,8 +65,10 @@ class GameConsumer:
                 self.ball_dy *= 2
                 self.slow_ball_speed = False
             else: # 속도 증가
-                self.ball_dx += abs(self.add_ball_speed)
-                self.ball_dy += self.add_ball_speed
+                if (self.speed == 1 and self.paddle_touch <= 15) or (self.speed == 2 and self.paddle_touch <= 5) or (self.speed == 3 and self.paddle_touch <= 2):
+                    self.ball_dx += abs(self.add_ball_speed)
+                    self.ball_dy += self.add_ball_speed
+                    self.paddle_touch += 1
 
             await self.channel_layer.group_send(
                 self.game_group_name,
@@ -87,8 +90,10 @@ class GameConsumer:
                 self.ball_dy *= 2
                 self.slow_ball_speed = False
             else: # 속도 증가
-                self.ball_dx -= abs(self.add_ball_speed)
-                self.ball_dy += self.add_ball_speed
+                if (self.speed == 1 and self.paddle_touch <= 15) or (self.speed == 2 and self.paddle_touch <= 5) or (self.speed == 3 and self.paddle_touch <= 2):
+                    self.ball_dx -= abs(self.add_ball_speed)
+                    self.ball_dy += self.add_ball_speed
+                    self.paddle_touch += 1
 
             await self.channel_layer.group_send(
                 self.game_group_name,
@@ -122,6 +127,7 @@ class GameConsumer:
                 self.ball_dx = -self.speed
             self.ball_dy = self.speed  * random.choice([-1, 1])
             self.slow_ball_speed = True 
+            self.paddle_touch = 0
         
             # 게임 스코어 전송
             await self.channel_layer.group_send(
@@ -450,8 +456,10 @@ class TournamentGame(GameConsumer):
                 self.ball_dy *= 2
                 self.slow_ball_speed = False
             else: # 속도 증가
-                self.ball_dx += abs(self.add_ball_speed)
-                self.ball_dy += self.add_ball_speed
+                if (self.paddle_touch <= 5):
+                    self.ball_dx += abs(self.add_ball_speed)
+                    self.ball_dy += self.add_ball_speed
+                    self.paddle_touch += 1
 
             await self.channel_layer.group_send(
                 self.game_group_name,
@@ -473,9 +481,11 @@ class TournamentGame(GameConsumer):
                 self.ball_dy *= 2
                 self.slow_ball_speed = False
             else: # 속도 증가
-                self.ball_dx -= abs(self.add_ball_speed)
-                self.ball_dy += self.add_ball_speed
-
+                if (self.paddle_touch <= 5):
+                    self.ball_dx -= abs(self.add_ball_speed)
+                    self.ball_dy += self.add_ball_speed
+                    self.paddle_touch += 1
+            
             await self.channel_layer.group_send(
                 self.game_group_name,
                 {
@@ -508,6 +518,7 @@ class TournamentGame(GameConsumer):
                 self.ball_dx = -self.speed
             self.ball_dy = self.speed  * random.choice([-1, 1])
             self.slow_ball_speed = True 
+            self.paddle_touch = 0
 
             # 게임 스코어 전송
             await self.channel_layer.group_send(
