@@ -7,7 +7,7 @@ from django.db.models import Min
 import asyncio
 
 from ..serializers import GameRoomSerializer, TournamentRoomSerializer, PlayerSerializer
-from .common_utils import start_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
+from .common_utils import start_game, start_local_game, get_player, save_game_by_id, get_pvp_serializer_data, send_game_info
 from game.models import Game, Tournament
 from player.models import Player
 from .game_consumers import GameConsumer, TournamentGame, Bye
@@ -114,6 +114,8 @@ class RandomMatchConsumer(AsyncWebsocketConsumer): # Random PvP Game
                 }, 
             )
             self.socket_message = 'START_RANDOM_GAME'
+            self.player1 = self.game.player1
+            self.player2 = self.game.player2
             if self.game.id not in RandomMatchConsumer.rooms:
                 RandomMatchConsumer.rooms[self.game.id] = GameConsumer(self)
             await start_game(self)
@@ -264,7 +266,7 @@ class TournamentMatchConsumer(AsyncWebsocketConsumer):     # tournament
                 )
             await self.channel_layer.group_discard(self.tournament_group_name, self.channel_name)
             await self.channel_layer.group_discard(self.tournament_semi_group_name, self.channel_name)
-        await self.close() # 쉬밬 왜 에러 나느겨게쏙 ㅅㅂ
+        await self.close() # TODO 에러나는거 수정
 
     async def modify_player_status(self):
         await database_sync_to_async(self.tournament.refresh_from_db)()
@@ -468,6 +470,8 @@ class GameMixin:
                     }, 
                 )
                 self.socket_message = 'START_FRIEND_GAME'
+                self.player1 = self.game.player1
+                self.player2 = self.game.player2
                 if self.game.id not in GameMixin.rooms:
                     GameMixin.rooms[self.game.id] = GameConsumer(self)
                 await start_game(self)
@@ -593,4 +597,70 @@ class GameMixin:
             player1=self.player,
             player2=self.player2,
             mode=1,
+            speed=self.speed)
+
+
+class LocalMatchConsumer(AsyncWebsocketConsumer): # Local Game
+
+    async def connect(self):
+        self.user = self.scope['user']
+
+        if self.user.is_authenticated:
+            self.player = self.user
+            await self.accept()
+        else:
+            await self.close()
+
+    async def start_local_game(self, data):
+        self.speed = data['speed']
+
+        await self.create_local_game_room()
+        self.game_group_name = f'game_{self.game.id}'
+        await self.channel_layer.group_add(self.game_group_name, self.channel_name)
+        await self.send_local_game_info()
+
+    async def send_local_game_info(self):
+        setattr(self.game, 'status', 1)
+        await database_sync_to_async(self.game.save)()
+        self.socket_message = 'START_LOCAL_GAME'
+        self.player1 = self.player
+        self.player2 = self.player
+        self.local_game = GameConsumer(self)
+        await start_local_game(self)
+
+    async def move_paddle(self, data):
+        player_id = data['player_id']
+
+        if self.local_game:
+            asyncio.create_task(self.local_game.change_paddle_position(player_id, data['y_coordinate']))  # 백그라운드에서 실행
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
+        await database_sync_to_async(self.game.delete)()
+    
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        command = data['command']
+        await self.commands[command](self, data)
+
+    commands = {
+        'start_local_game': start_local_game,
+        'move_paddle': move_paddle,
+    }
+
+    async def game_info(self, event):
+        data = event['data']
+        message_type = event['message_type']
+
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'data': data,
+        }))
+
+    @database_sync_to_async
+    def create_local_game_room(self):
+        self.game = Game.objects.create(
+            player1=self.player,
+            player2=self.player,
+            mode=2,
             speed=self.speed)
