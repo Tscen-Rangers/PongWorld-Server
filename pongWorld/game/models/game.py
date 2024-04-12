@@ -19,6 +19,7 @@ class Game(TimestampBaseModel):
     GAME_MODES_CHOICES = (
         (0, "Quick Match"),
         (1, "Invite Friend"),
+        (2, "Local Game"),
     )
     mode = models.PositiveIntegerField(choices=GAME_MODES_CHOICES)
 

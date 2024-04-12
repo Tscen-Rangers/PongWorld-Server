@@ -37,6 +37,16 @@ class GameConsumer:
         self.game_group_name = consumer_instance.game_group_name
         self.player1 = self.game.player1
         self.player2 = self.game.player2
+        self.player1_id = self.player1.id
+        self.player2_id = self.player1.id
+
+    def init_local_game(self, consumer_instance):
+        self.game = consumer_instance.game
+        self.game_group_name = consumer_instance.game_group_name
+        self.player1 = consumer_instance.player1
+        self.player2 = consumer_instance.player2
+        self.player1_id = -1
+        self.player2_id = 0
     
     async def calculate_ball_state(self):
 
@@ -112,12 +122,12 @@ class GameConsumer:
             if self.ball_position[0] - BALL_RADIUS < -WALL_WIDTH_HALF:
                 self.player2_score += 1  # player2 점수 증가
                 message_type = "PLAYER2_GET_SCORE"
-                player_id = self.player2.id
+                player_id = self.player2_id
             ## 오른쪽 벽 충돌
             elif self.ball_position[0] + BALL_RADIUS > WALL_WIDTH_HALF:
                 self.player1_score += 1  # player1 점수 증가
                 message_type = "PLAYER1_GET_SCORE"
-                player_id = self.player1.id
+                player_id = self.player1_id
             ### 공 위치 초기화
             self.ball_position = [0, random.randint(-100, 100)]
             self.init_ball_position = True
@@ -141,53 +151,74 @@ class GameConsumer:
             
             ## 스코어 충족으로 인한 게임종료
             if self.player1_score == SCORE_LIMIT or self.player2_score == SCORE_LIMIT:
-                setattr(self.game, 'player1_score', self.player1_score)
-                setattr(self.game, 'player2_score', self.player2_score)
-                setattr(self.game, 'status', 2)
-                # player1이 승리했을 때
-                if self.player1_score == SCORE_LIMIT:
-                    setattr(self.game, 'winner', self.player1)
-                    setattr(self.player1, 'wins', self.player1.wins + 1)
-                    player1_new_rating, player2_new_rating = self.calculate_new_ratings(self.player1.total_score, self.player2.total_score)
-                # player2가 승리했을 때
-                elif self.player2_score == SCORE_LIMIT:
-                    setattr(self.game, 'winner', self.player2)
-                    setattr(self.player2, 'wins', self.player2.wins + 1)
-                    player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
-                winner = self.game.winner
-                await database_sync_to_async(self.game.save)()
-                
-                # 점수 저장 전 현재 랭킹 가져오기
-                player1_ranking = self.get_ranking(self.player1, self.player1.total_score)
-                player2_ranking = self.get_ranking(self.player2, self.player2.total_score)
-                
-                # new rating 저장
-                if player1_new_rating < 0:
-                    player1_new_rating = 0
-                elif player2_new_rating < 0:
-                    player2_new_rating = 0
+                if self.game.mode != 2: # 로컬 게임이 아닐 때만
+                    setattr(self.game, 'player1_score', self.player1_score)
+                    setattr(self.game, 'player2_score', self.player2_score)
+                    setattr(self.game, 'status', 2)
+                    # player1이 승리했을 때
+                    if self.player1_score == SCORE_LIMIT:
+                        setattr(self.game, 'winner', self.player1)
+                        setattr(self.player1, 'wins', self.player1.wins + 1)
+                        player1_new_rating, player2_new_rating = self.calculate_new_ratings(self.player1.total_score, self.player2.total_score)
+                    # player2가 승리했을 때
+                    elif self.player2_score == SCORE_LIMIT:
+                        setattr(self.game, 'winner', self.player2)
+                        setattr(self.player2, 'wins', self.player2.wins + 1)
+                        player2_new_rating, player1_new_rating = self.calculate_new_ratings(self.player2.total_score, self.player1.total_score)
+                    winner = self.game.winner
+                    await database_sync_to_async(self.game.save)()
                     
-                # new ranking 반영
-                player1_new_ranking = self.get_ranking(self.player1, player1_new_rating)
-                player2_new_ranking = self.get_ranking(self.player2, player2_new_rating)
+                    # 점수 저장 전 현재 랭킹 가져오기
+                    player1_ranking = self.get_ranking(self.player1, self.player1.total_score)
+                    player2_ranking = self.get_ranking(self.player2, self.player2.total_score)
+                    
+                    # new rating 저장
+                    if player1_new_rating < 0:
+                        player1_new_rating = 0
+                    elif player2_new_rating < 0:
+                        player2_new_rating = 0
+                        
+                    # new ranking 반영
+                    player1_new_ranking = self.get_ranking(self.player1, player1_new_rating)
+                    player2_new_ranking = self.get_ranking(self.player2, player2_new_rating)
+                    
+                    # 게임 결과 전송
+                    await self.channel_layer.group_send(
+                        self.game_group_name,
+                        {
+                            'type': 'game_info',
+                            'message_type': 'GAME_OVER',
+                            'data': self.get_game_result(winner, player1_new_rating, player2_new_rating, 
+                                                        player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
+                        }
+                    )
                 
-                # 게임 결과 전송
-                await self.channel_layer.group_send(
-                    self.game_group_name,
-                    {
-                        'type': 'game_info',
-                        'message_type': 'GAME_OVER',
-                        'data': self.get_game_result(winner, player1_new_rating, player2_new_rating, 
-                                                     player1_ranking, player1_new_ranking, player2_ranking, player2_new_ranking)
-                    }
-                )
-                
-                setattr(self.player1, 'total_score', player1_new_rating)
-                setattr(self.player2, 'total_score', player2_new_rating)
-                setattr(self.player1, 'matches', self.player1.matches + 1)
-                setattr(self.player2, 'matches', self.player2.matches + 1)
-                await database_sync_to_async(self.player1.save)()
-                await database_sync_to_async(self.player2.save)()
+                    setattr(self.player1, 'total_score', player1_new_rating)
+                    setattr(self.player2, 'total_score', player2_new_rating)
+                    setattr(self.player1, 'matches', self.player1.matches + 1)
+                    setattr(self.player2, 'matches', self.player2.matches + 1)
+                    await database_sync_to_async(self.player1.save)()
+                    await database_sync_to_async(self.player2.save)()
+            
+                else:   # 로컬 게임일 때
+                    setattr(self.game, 'status', 2)
+                    # player1이 승리했을 때
+                    if self.player1_score == SCORE_LIMIT:
+                        winner = 'player1'
+                    # player2가 승리했을 때
+                    elif self.player2_score == SCORE_LIMIT:
+                        winner = 'player2'
+                    
+                    # 게임 결과 전송
+                    await self.channel_layer.group_send(
+                        self.game_group_name,
+                        {
+                            'type': 'game_info',
+                            'message_type': 'GAME_OVER',
+                            'data': self.get_local_game_result(winner)
+                        }
+                    )
+                    await database_sync_to_async(self.game.save)()
 
                 return False 
         
@@ -216,12 +247,12 @@ class GameConsumer:
         
     async def change_paddle_position(self, player_id, y_coordinate):
         # 플레이어 1의 패들 위치 업데이트
-        if player_id == self.player1.id:
+        if player_id == self.player1_id:
             self.player1_paddle_position[1] = y_coordinate
             message_type = "CHANGE_PLAYER1_PADDLE_POSTITION"
 
         # 플레이어 2의 패들 위치 업데이트
-        elif player_id == self.player2.id:
+        elif player_id == self.player2_id:
             self.player2_paddle_position[1] = y_coordinate
             message_type = "CHANGE_PLAYER2_PADDLE_POSTITION"
 
@@ -293,6 +324,34 @@ class GameConsumer:
         }
         return game_state
 
+    def get_local_game_state(self):
+        game_state = {
+            'player1': {
+                'info': {
+                    'nickname': 'player1'
+                },
+                'position': list(self.player1_paddle_position),
+                'score': self.player1_score,
+            },
+            'player2': {
+                'info': {
+                    'nickname': 'player2'
+                },
+                'position': list(self.player2_paddle_position),
+                'score': self.player2_score,
+            },
+            'ball': {
+                'position': list(self.ball_position),
+                'radius': BALL_RADIUS,
+            },
+            'walls': {
+                'top': self.top_wall_y,
+                'bottom': self.bottom_wall_y,
+            },
+            'speed': self.speed,
+        }
+        return game_state
+
     def get_ball_position(self):
         ball_position = {
             'position': list(self.ball_position)
@@ -300,11 +359,11 @@ class GameConsumer:
         return ball_position
 
     def get_score(self, player_id):
-        if player_id == self.player1.id:
+        if player_id == self.player1_id:
             score = {
                 'score': self.player1_score
             }
-        elif player_id == self.player2.id:
+        elif player_id == self.player2_id:
             score = {
                 'score': self.player2_score
             }
@@ -341,12 +400,18 @@ class GameConsumer:
         }
         return game_result
 
+    def get_local_game_result(self, winner):
+        game_result = {
+            'winner': winner,
+        }
+        return game_result
+
     def get_paddle_position(self, player_id):
-        if player_id == self.player1.id:
+        if player_id == self.player1_id:
             paddle_position = {
                 'position': list(self.player1_paddle_position),
             }
-        elif player_id == self.player2.id:
+        elif player_id == self.player2_id:
             paddle_position = {
                 'position': list(self.player2_paddle_position),
             }
