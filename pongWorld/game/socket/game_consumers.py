@@ -152,7 +152,6 @@ class GameConsumer:
             ## 스코어 충족으로 인한 게임종료
             if self.player1_score == SCORE_LIMIT or self.player2_score == SCORE_LIMIT:
                 if hasattr(self, 'game') and self.game.mode == 2 :    # 로컬 게임일 때만
-                    setattr(self.game, 'status', 2)
                     # player1이 승리했을 때
                     if self.player1_score == SCORE_LIMIT:
                         winner = 'player1'
@@ -169,7 +168,6 @@ class GameConsumer:
                             'data': self.get_local_game_result(winner)
                         }
                     )
-                    await database_sync_to_async(self.game.save)()
 
                 else: # 로컬 게임이 아닐 때만
                     setattr(self.game, 'player1_score', self.player1_score)
