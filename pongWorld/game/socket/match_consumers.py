@@ -639,6 +639,9 @@ class LocalMatchConsumer(AsyncWebsocketConsumer): # Local Game
         await self.close()
 
     async def disconnect(self, close_code):
+        self.local_game.player1_status = 1
+        self.local_game.player2_status = 1
+        await database_sync_to_async(self.game.delete)()
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
     
     async def receive(self, text_data):
