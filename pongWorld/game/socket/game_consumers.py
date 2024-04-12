@@ -214,7 +214,7 @@ class GameConsumer:
                         self.game_group_name,
                         {
                             'type': 'game_info',
-                            'message_type': 'GAME_OVER',
+                            'message_type': 'LOCAL_GAME_OVER',
                             'data': self.get_local_game_result(winner)
                         }
                     )
