@@ -634,8 +634,11 @@ class LocalMatchConsumer(AsyncWebsocketConsumer): # Local Game
         if self.local_game:
             asyncio.create_task(self.local_game.change_paddle_position(player_id, data['y_coordinate']))  # 백그라운드에서 실행
 
-    async def disconnect(self, close_code):
+    async def end_game(self, data):
         await database_sync_to_async(self.game.delete)()
+        await self.close()
+
+    async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.game_group_name, self.channel_name)
     
     async def receive(self, text_data):
@@ -646,6 +649,7 @@ class LocalMatchConsumer(AsyncWebsocketConsumer): # Local Game
     commands = {
         'start_local_game': start_local_game,
         'move_paddle': move_paddle,
+        'end_game': end_game,
     }
 
     async def game_info(self, event):
