@@ -657,6 +657,15 @@ class LocalMatchConsumer(AsyncWebsocketConsumer): # Local Game
             'data': data,
         }))
 
+    async def game_message(self, event):
+        message_type = event['message_type']
+        message = event['message']
+        await self.send(text_data=json.dumps({
+            'type': message_type,
+            'message': message,
+        },
+        ))
+
     @database_sync_to_async
     def create_local_game_room(self):
         self.game = Game.objects.create(
