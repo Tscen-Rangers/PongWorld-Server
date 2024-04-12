@@ -426,6 +426,8 @@ class TournamentGame(GameConsumer):
         self.player2 = player2
         self.winner = None
         self.winner_status = 1
+        self.player1_id = self.player1.id
+        self.player2_id = self.player2.id
 
     # 준결승
     async def start_tournament_semi_final_loop(self, consumer_instance):
