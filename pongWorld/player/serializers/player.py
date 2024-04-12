@@ -8,10 +8,20 @@ from friends.models import Friend
 from blocks.models import Block
 
 class PlayerSettingSerializer(serializers.ModelSerializer):
+    is_blocking = serializers.SerializerMethodField()
+
     class Meta:
         model = Player
         profile_img = serializers.ImageField(use_url=True)
-        fields = ["id", "nickname", "profile_img", "intro"]
+        fields = ["id", "nickname", "profile_img", "intro", "is_blocking"]
+
+    def get_is_blocking(self, obj) -> bool:
+        user = self.context['request'].user
+        try:
+            block = Block.objects.get(blocker=user, blocked=obj)
+            return True # block
+        except Block.DoesNotExist:
+            return False  # unblock
 
 class PlayerSerializer(serializers.ModelSerializer):
     is_online = serializers.SerializerMethodField()
