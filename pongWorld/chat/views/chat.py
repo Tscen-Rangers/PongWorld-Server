@@ -39,8 +39,10 @@ class LeaveChatRoom(APIView):
 
         if chatroom.user1 == user:
             chatroom.is_user1_in = False
+            chatroom.msg_count_2 = 0
         else:
             chatroom.is_user2_in = False
+            chatroom.msg_count_1 = 0
         chatroom.save()
         return Response({"message": "You have successfully left the chat room."}, status=status.HTTP_200_OK)
 
