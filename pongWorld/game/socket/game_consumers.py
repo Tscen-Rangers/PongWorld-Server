@@ -151,7 +151,27 @@ class GameConsumer:
             
             ## 스코어 충족으로 인한 게임종료
             if self.player1_score == SCORE_LIMIT or self.player2_score == SCORE_LIMIT:
-                if self.game.mode != 2: # 로컬 게임이 아닐 때만
+                if hasattr(self, 'game') and self.game.mode == 2 :    # 로컬 게임일 때만
+                    setattr(self.game, 'status', 2)
+                    # player1이 승리했을 때
+                    if self.player1_score == SCORE_LIMIT:
+                        winner = 'player1'
+                    # player2가 승리했을 때
+                    elif self.player2_score == SCORE_LIMIT:
+                        winner = 'player2'
+                    
+                    # 게임 결과 전송
+                    await self.channel_layer.group_send(
+                        self.game_group_name,
+                        {
+                            'type': 'game_info',
+                            'message_type': 'LOCAL_GAME_OVER',
+                            'data': self.get_local_game_result(winner)
+                        }
+                    )
+                    await database_sync_to_async(self.game.save)()
+
+                else: # 로컬 게임이 아닐 때만
                     setattr(self.game, 'player1_score', self.player1_score)
                     setattr(self.game, 'player2_score', self.player2_score)
                     setattr(self.game, 'status', 2)
@@ -199,26 +219,6 @@ class GameConsumer:
                     setattr(self.player2, 'matches', self.player2.matches + 1)
                     await database_sync_to_async(self.player1.save)()
                     await database_sync_to_async(self.player2.save)()
-            
-                else:   # 로컬 게임일 때
-                    setattr(self.game, 'status', 2)
-                    # player1이 승리했을 때
-                    if self.player1_score == SCORE_LIMIT:
-                        winner = 'player1'
-                    # player2가 승리했을 때
-                    elif self.player2_score == SCORE_LIMIT:
-                        winner = 'player2'
-                    
-                    # 게임 결과 전송
-                    await self.channel_layer.group_send(
-                        self.game_group_name,
-                        {
-                            'type': 'game_info',
-                            'message_type': 'LOCAL_GAME_OVER',
-                            'data': self.get_local_game_result(winner)
-                        }
-                    )
-                    await database_sync_to_async(self.game.save)()
 
                 return False 
         
