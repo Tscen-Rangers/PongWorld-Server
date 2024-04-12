@@ -38,7 +38,7 @@ class GameConsumer:
         self.player1 = self.game.player1
         self.player2 = self.game.player2
         self.player1_id = self.player1.id
-        self.player2_id = self.player1.id
+        self.player2_id = self.player2.id
 
     def init_local_game(self, consumer_instance):
         self.game = consumer_instance.game
